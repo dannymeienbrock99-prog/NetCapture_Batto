@@ -922,7 +922,7 @@ function Start-Streaming {
             Add-Log "Start verhindert: OBS WebSocket ist nicht verbunden; SRT-Empfänger auf UDP $requiredPorts konnten nicht vorbereitet werden."
             if ($streamSet.AudioCapture) { try { $streamSet.AudioCapture.Dispose() } catch { } }
             [System.Windows.Forms.MessageBox]::Show(
-                "Die Übertragung wurde noch nicht gestartet, weil OBS WebSocket nicht verbunden ist.`r`n`r`n1. OBS WebSocket auf dem OBS-PC aktivieren.`r`n2. In NetCapture mit OBS verbinden.`r`n3. Danach erneut auf „Übertragung starten“ klicken.`r`n`r`nNetCapture richtet dann die SRT-Empfänger auf UDP $requiredPorts automatisch ein und startet sie vor FFmpeg.",
+                "Die Übertragung wurde noch nicht gestartet, weil OBS WebSocket nicht verbunden ist.`r`n`r`n1. OBS WebSocket auf dem OBS-PC aktivieren.`r`n2. In NetCapture mit OBS verbinden.`r`n3. Danach erneut auf 'Übertragung starten' klicken.`r`n`r`nNetCapture richtet dann die SRT-Empfänger auf UDP $requiredPorts automatisch ein und startet sie vor FFmpeg.",
                 'Zuerst mit OBS verbinden',
                 'OK',
                 'Warning'
