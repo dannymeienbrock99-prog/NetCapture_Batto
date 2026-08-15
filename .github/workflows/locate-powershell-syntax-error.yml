@@ -1,0 +1,42 @@
+name: Locate PowerShell syntax error
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/locate-powershell-syntax-error.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  parse:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print parser errors with line and column
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path .\NetCapture.ps1),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+
+          foreach ($parserError in $errors) {
+            $extent = $parserError.Extent
+            Write-Host ("PARSER_ERROR line={0} column={1} endLine={2} endColumn={3}" -f `
+              $extent.StartLineNumber,
+              $extent.StartColumnNumber,
+              $extent.EndLineNumber,
+              $extent.EndColumnNumber)
+            Write-Host ("MESSAGE: " + $parserError.Message)
+            Write-Host ("TEXT: " + $extent.Text)
+          }
+
+          if ($errors.Count -gt 0) {
+            exit 1
+          }
