@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="492" height="942" viewBox="0 0 492 942">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071126"/>
+      <stop offset="0.55" stop-color="#123b80"/>
+      <stop offset="1" stop-color="#6b42ee"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f9dff"/>
+      <stop offset="1" stop-color="#8b5cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="492" height="942" fill="url(#bg)"/>
+  <path d="M-80 250L360-40M-100 470L520 60M-90 760L560 330M40 970L540 640" stroke="#62a4ff" stroke-opacity="0.18" stroke-width="34"/>
+  <rect x="66" y="98" width="360" height="360" rx="86" fill="#0c101b" stroke="#8ab9ff" stroke-width="14"/>
+  <rect x="119" y="162" width="254" height="180" rx="23" fill="#121725" stroke="url(#screen)" stroke-width="16"/>
+  <path d="M197 389h98M246 342v47" fill="none" stroke="#b9c9e8" stroke-width="17" stroke-linecap="round"/>
+  <circle cx="168" cy="250" r="20" fill="#3ddc97"/>
+  <circle cx="246" cy="210" r="20" fill="#4f9dff"/>
+  <circle cx="324" cy="276" r="20" fill="#8b5cff"/>
+  <path d="M185 241l44-22m35 16l42 35M187 258l116 15" fill="none" stroke="#e2edff" stroke-width="10" stroke-linecap="round"/>
+  <text x="246" y="565" text-anchor="middle" fill="#ffffff" font-family="Segoe UI,Arial,sans-serif" font-size="43" font-weight="700">CRAZY_BATTO</text>
+  <text x="246" y="620" text-anchor="middle" fill="#83b7ff" font-family="Segoe UI,Arial,sans-serif" font-size="39" font-weight="600">NETCAPTURE</text>
+  <path d="M105 677h282" stroke="#8bb9ff" stroke-opacity="0.6" stroke-width="4"/>
+  <text x="246" y="736" text-anchor="middle" fill="#d8e5ff" font-family="Segoe UI,Arial,sans-serif" font-size="25">NETWORK CAPTURE</text>
+  <text x="246" y="772" text-anchor="middle" fill="#d8e5ff" font-family="Segoe UI,Arial,sans-serif" font-size="25">FOR OBS</text>
+  <circle cx="190" cy="846" r="11" fill="#3ddc97"/>
+  <circle cx="246" cy="846" r="11" fill="#4f9dff"/>
+  <circle cx="302" cy="846" r="11" fill="#8b5cff"/>
+</svg>
+

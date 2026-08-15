@@ -1,0 +1,9 @@
+bin/
+obj/
+installer-output/
+third_party/naudio/AudioPipeCapture.dll
+third_party/launcher/NetCapture.exe
+third_party/ffmpeg/ffmpeg.exe
+*.user
+*.suo
+tests/__pycache__/

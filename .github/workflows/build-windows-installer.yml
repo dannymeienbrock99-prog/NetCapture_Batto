@@ -1,0 +1,72 @@
+name: Windows-Installer bauen
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "AudioPipeCapture.cs"
+      - "AudioPipeCapture.csproj"
+      - "Build-AudioBridge.ps1"
+      - "Build-Launcher.ps1"
+      - "Build-Installer.ps1"
+      - "NetCaptureLauncher.cs"
+      - "NetCaptureLauncher.csproj"
+      - "NetCapture.ps1"
+      - "installer/**"
+      - "assets/**"
+      - "third_party/**"
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: NetCapture Setup.exe
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+
+      - name: .NET SDK einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Audio-DLL für Windows PowerShell 5.1 bauen
+        shell: powershell
+        run: .\Build-AudioBridge.ps1 -Force
+
+      - name: Fensterlosen NetCapture-EXE-Launcher bauen
+        shell: powershell
+        run: .\Build-Launcher.ps1 -Force
+
+      - name: Geprüften FFmpeg-Build laden
+        shell: powershell
+        run: .\Download-FFmpeg.ps1
+
+      - name: Paket prüfen
+        shell: powershell
+        run: python .\tests\validate_package.py
+
+      - name: Inno Setup installieren
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Installer bauen
+        shell: powershell
+        run: .\Build-Installer.ps1 -SkipAudioBuild -SkipLauncherBuild
+
+      - name: Build-Artefakte hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: CrazyBatto-NetCapture-v0.6.2-Windows
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            installer-output/CrazyBatto-NetCapture-Setup-v0.6.2.exe
+            installer-output/SHA256.txt
+            third_party/naudio/AudioPipeCapture.dll
+            third_party/launcher/NetCapture.exe
