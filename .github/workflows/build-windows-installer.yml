@@ -91,11 +91,11 @@ jobs:
           else {
             gh release create $tag $package $checksum `
               --target $env:GITHUB_SHA `
-              --title "CrazyBatto NetCapture v0.6.3 – Fehler-4551-Korrektur" `
+              --title "CrazyBatto NetCapture v0.6.3 - Fehler 4551 Korrektur" `
               --notes-file "RELEASE-NOTES-v0.6.3.md" `
               --latest
           }
 
           if ($LASTEXITCODE -ne 0) {
-            throw "Der öffentliche GitHub-Release konnte nicht erstellt werden."
+            throw "Der GitHub Release konnte nicht erstellt werden."
           }

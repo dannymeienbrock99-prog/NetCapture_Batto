@@ -1,0 +1,63 @@
+name: NetCapture v0.6.3 Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-v0.6.3-release.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  release:
+    name: Publish no-TEMP installer ZIP
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download verified Windows build
+        uses: actions/download-artifact@v5
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 31911274888
+          name: CrazyBatto-NetCapture-v0.6.3-Windows
+          path: release-files
+
+      - name: Publish release ZIP
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v0.6.3"
+          $package = "release-files\installer-output\CrazyBatto-NetCapture-Setup-v0.6.3.zip"
+          $checksum = "release-files\installer-output\SHA256.txt"
+
+          if (-not (Test-Path -LiteralPath $package)) {
+            throw "The verified installer ZIP is missing."
+          }
+
+          $releaseExists = gh release list --limit 100 --json tagName |
+            ConvertFrom-Json |
+            Where-Object { $_.tagName -eq $tag }
+
+          if ($releaseExists) {
+            gh release upload $tag $package $checksum --clobber
+          }
+          else {
+            gh release create $tag $package $checksum `
+              --target $env:GITHUB_SHA `
+              --title "CrazyBatto NetCapture v0.6.3 - Fehler 4551 Korrektur" `
+              --notes-file "RELEASE-NOTES-v0.6.3.md" `
+              --latest
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "The GitHub release could not be created."
+          }
