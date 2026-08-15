@@ -38,7 +38,7 @@ def main() -> None:
     assert icon.is_file(), "missing file: assets/NetCapture.ico"
     assert icon.read_bytes()[:4] == b"\x00\x00\x01\x00", "invalid Windows icon header"
     readme = require("README.md")
-    release_notes = require("RELEASE-NOTES-v0.6.4.md")
+    release_notes = require("RELEASE-NOTES-v0.6.5.md")
     require("LICENSE.txt")
     require("THIRD-PARTY-NOTICES.md")
 
@@ -76,6 +76,10 @@ def main() -> None:
         "OBS media source kind": "ffmpeg_source",
         "OBS triple positioning": "SetSceneItemTransform",
         "OBS top-left alignment": "alignment = 5",
+        "same-PC OBS test": "$chkLocalObsTest",
+        "loopback streaming": "127.0.0.1",
+        "local mode persistence": "localObsTest = $chkLocalObsTest.Checked",
+        "local mode address restore": "Set-LocalObsTestMode",
     }
     for name, marker in required_script_features.items():
         assert marker in script, f"missing feature marker: {name}"
@@ -97,8 +101,8 @@ def main() -> None:
     assert "Willkommen beim Installations-Assistenten" in installer
     assert "third_party\\ffmpeg\\ffmpeg.exe" in installer
     assert "third_party\\launcher\\NetCapture.exe" in installer
-    assert "RELEASE-NOTES-v0.6.4.md" in installer
-    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.4" in installer
+    assert "RELEASE-NOTES-v0.6.5.md" in installer
+    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.5" in installer
     assert "UseSetupLdr=no" in installer, "setup must not execute a loader from the Windows TEMP directory"
     assert "ArchitecturesAllowed=x64compatible" in installer
     assert "ArchitecturesInstallIn64BitMode=x64compatible" in installer
@@ -165,11 +169,14 @@ def main() -> None:
     assert "Build-Launcher.ps1 -Force" in workflow
     assert "Download-FFmpeg.ps1" in workflow
     assert "Build-Installer.ps1 -SkipAudioBuild -SkipLauncherBuild" in workflow
-    assert "CrazyBatto-NetCapture-Setup-v0.6.4.zip" in workflow
-    assert "CrazyBatto-NetCapture-v0.6.4-Windows" in workflow
+    assert "CrazyBatto-NetCapture-Setup-v0.6.5.zip" in workflow
+    assert "CrazyBatto-NetCapture-v0.6.5-Windows" in workflow
     assert "Compress-Archive" in builder
     assert "$setupParts.Count -lt 2" in builder
-    assert "$script:AppVersion = '0.6.4'" in script
+    assert "$script:AppVersion = '0.6.5'" in script
+    assert "$txtTargetIp.Text = '127.0.0.1'" in script
+    assert "$txtObsHost.Text = '127.0.0.1'" in script
+    assert "Firewall-Freigabe sind nicht erforderlich" in script
     assert "timeout=5000000" not in script, "OBS listener must not expire after five seconds"
     assert "$script:SrtConnectTimeoutMs = 20000" in script, "SRT caller timeout must be 20 seconds"
     assert "connect_timeout=$script:SrtConnectTimeoutMs" in script, "SRT caller URL must use the configured timeout"

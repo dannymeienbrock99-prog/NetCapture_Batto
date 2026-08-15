@@ -22,7 +22,7 @@ public static class NetCaptureDpi {
 catch { }
 
 $script:AppName = 'Crazy_Batto NetCapture'
-$script:AppVersion = '0.6.4'
+$script:AppVersion = '0.6.5'
 $script:SrtConnectTimeoutMs = 20000
 $script:BasePath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:ConfigPath = Join-Path $env:APPDATA 'CrazyBatto\NetCapture\settings.json'
@@ -42,6 +42,9 @@ $script:SavedAudioDeviceId = $null
 $script:SavedAudioDeviceKind = $null
 $script:ObsSocket = $null
 $script:ObsConnected = $false
+$script:RemoteTargetIp = '192.168.178.50'
+$script:RemoteObsHost = '192.168.178.50'
+$script:ApplyingLocalObsTestMode = $false
 
 function Add-Log {
     param([string]$Text)
@@ -686,7 +689,9 @@ function Disconnect-ObsWebSocket {
     }
 
     $script:ObsConnected = $false
-    if ($null -ne $btnObsConnect) { $btnObsConnect.Text = 'Mit OBS verbinden' }
+    if ($null -ne $btnObsConnect) {
+        $btnObsConnect.Text = if ($chkLocalObsTest.Checked) { 'Lokal mit OBS verbinden' } else { 'Mit OBS verbinden' }
+    }
     if ($null -ne $btnObsCreateSource) { $btnObsCreateSource.Enabled = $false }
     if ($null -ne $btnObsRefresh) { $btnObsRefresh.Enabled = $false }
     if ($null -ne $cmbObsScene) { $cmbObsScene.Items.Clear() }
@@ -1078,11 +1083,16 @@ function Save-Settings {
         if (($cmbCaptureMode.SelectedItem -eq 'Bildschirm' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') -and $cmbMonitor.SelectedIndex -ge 0) {
             $script:SavedMonitorIndex = $cmbMonitor.SelectedIndex
         }
+        if (-not $chkLocalObsTest.Checked) {
+            $script:RemoteTargetIp = $txtTargetIp.Text.Trim()
+            $script:RemoteObsHost = $txtObsHost.Text.Trim()
+        }
         $settings = [ordered]@{
             monitor = $script:SavedMonitorIndex
             captureMode = [string]$cmbCaptureMode.SelectedItem
             captureWindowTitle = $selectedCaptureWindowTitle
-            targetIp = $txtTargetIp.Text.Trim()
+            targetIp = $script:RemoteTargetIp
+            localObsTest = $chkLocalObsTest.Checked
             port = $txtPort.Text.Trim()
             fps = [string]$cmbFps.SelectedItem
             resolution = [string]$cmbResolution.SelectedItem
@@ -1092,7 +1102,7 @@ function Save-Settings {
             drawMouse = $chkMouse.Checked
             audioDeviceId = $selectedAudioId
             audioDeviceKind = $selectedAudioKind
-            obsHost = $txtObsHost.Text.Trim()
+            obsHost = $script:RemoteObsHost
             obsWebSocketPort = $txtObsWsPort.Text.Trim()
             obsSourceName = $txtObsSourceName.Text.Trim()
         }
@@ -1114,7 +1124,10 @@ function Load-Settings {
             $cmbCaptureMode.SelectedItem = [string]$captureModeProperty.Value
         }
         Refresh-CaptureTargets
-        if ($settings.targetIp) { $txtTargetIp.Text = [string]$settings.targetIp }
+        if ($settings.targetIp) {
+            $script:RemoteTargetIp = [string]$settings.targetIp
+            $txtTargetIp.Text = $script:RemoteTargetIp
+        }
         if ($settings.port) { $txtPort.Text = [string]$settings.port }
         if ($settings.fps -and $cmbFps.Items.Contains([string]$settings.fps)) { $cmbFps.SelectedItem = [string]$settings.fps }
         if ($settings.resolution -and $cmbResolution.Items.Contains([string]$settings.resolution)) { $cmbResolution.SelectedItem = [string]$settings.resolution }
@@ -1127,11 +1140,20 @@ function Load-Settings {
         $audioKindProperty = $settings.PSObject.Properties['audioDeviceKind']
         if ($audioKindProperty -and $audioKindProperty.Value) { $script:SavedAudioDeviceKind = [string]$audioKindProperty.Value }
         $obsHostProperty = $settings.PSObject.Properties['obsHost']
-        if ($obsHostProperty -and $obsHostProperty.Value) { $txtObsHost.Text = [string]$obsHostProperty.Value }
+        if ($obsHostProperty -and $obsHostProperty.Value) {
+            $script:RemoteObsHost = [string]$obsHostProperty.Value
+            $txtObsHost.Text = $script:RemoteObsHost
+        }
         $obsPortProperty = $settings.PSObject.Properties['obsWebSocketPort']
         if ($obsPortProperty -and $obsPortProperty.Value) { $txtObsWsPort.Text = [string]$obsPortProperty.Value }
         $obsSourceProperty = $settings.PSObject.Properties['obsSourceName']
         if ($obsSourceProperty -and $obsSourceProperty.Value) { $txtObsSourceName.Text = [string]$obsSourceProperty.Value }
+        $localObsTestProperty = $settings.PSObject.Properties['localObsTest']
+        $localObsTestEnabled = $localObsTestProperty -and [bool]$localObsTestProperty.Value
+        $script:ApplyingLocalObsTestMode = $true
+        try { $chkLocalObsTest.Checked = $localObsTestEnabled }
+        finally { $script:ApplyingLocalObsTestMode = $false }
+        Set-LocalObsTestMode -Enabled $localObsTestEnabled -CaptureRemoteValues $false
         if ($cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') {
             $cmbResolution.SelectedItem = 'Original'
             $cmbResolution.Enabled = $false
@@ -1139,6 +1161,40 @@ function Load-Settings {
         }
     }
     catch { Add-Log "Einstellungen konnten nicht geladen werden: $($_.Exception.Message)" }
+}
+
+function Set-LocalObsTestMode {
+    param(
+        [bool]$Enabled,
+        [bool]$CaptureRemoteValues = $true
+    )
+
+    if ($Enabled) {
+        if ($CaptureRemoteValues) {
+            $targetIp = $txtTargetIp.Text.Trim()
+            $obsHost = $txtObsHost.Text.Trim()
+            if ($targetIp -and $targetIp -ne '127.0.0.1') { $script:RemoteTargetIp = $targetIp }
+            if ($obsHost -and $obsHost -ne '127.0.0.1') { $script:RemoteObsHost = $obsHost }
+        }
+        $txtTargetIp.Text = '127.0.0.1'
+        $txtObsHost.Text = '127.0.0.1'
+        $txtTargetIp.ReadOnly = $true
+        $txtObsHost.ReadOnly = $true
+        $btnPing.Text = 'Dieser PC'
+        $btnObsConnect.Text = 'Lokal mit OBS verbinden'
+        $rightHeader.Text = 'VERBINDUNG ZU OBS - LOKAL'
+        Add-Log 'Lokaler OBS-Test aktiv: SRT und OBS-WebSocket verwenden 127.0.0.1. Ein zweiter PC und eine Firewall-Freigabe sind nicht erforderlich.'
+    }
+    else {
+        $txtTargetIp.ReadOnly = $false
+        $txtObsHost.ReadOnly = $false
+        $txtTargetIp.Text = $script:RemoteTargetIp
+        $txtObsHost.Text = $script:RemoteObsHost
+        $btnPing.Text = 'PC testen'
+        $btnObsConnect.Text = 'Mit OBS verbinden'
+        $rightHeader.Text = 'VERBINDUNG ZUM OBS-PC'
+        Add-Log 'Netzwerkmodus aktiv: Die gespeicherte Adresse des OBS-PCs wurde wiederhergestellt.'
+    }
 }
 
 function New-Label {
@@ -1321,10 +1377,21 @@ $chkMouse.Checked = $true
 $chkMouse.ForeColor = [System.Drawing.Color]::White
 $left.Controls.Add($chkMouse)
 
-$rightHeader = New-Label 'VERBINDUNG ZUM OBS-PC' 20 18 330
+$rightHeader = New-Label 'VERBINDUNG ZUM OBS-PC' 20 18 244
 $rightHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 11)
 $rightHeader.ForeColor = [System.Drawing.Color]::FromArgb(79, 157, 255)
 $right.Controls.Add($rightHeader)
+
+$chkLocalObsTest = New-Object System.Windows.Forms.CheckBox
+$chkLocalObsTest.Text = 'Dieser PC testen'
+$chkLocalObsTest.Location = New-Object System.Drawing.Point(272, 16)
+$chkLocalObsTest.Size = New-Object System.Drawing.Size(132, 26)
+$chkLocalObsTest.ForeColor = [System.Drawing.Color]::FromArgb(112, 193, 255)
+$chkLocalObsTest.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+$right.Controls.Add($chkLocalObsTest)
+
+$localObsTestToolTip = New-Object System.Windows.Forms.ToolTip
+$localObsTestToolTip.SetToolTip($chkLocalObsTest, 'Verwendet 127.0.0.1 für SRT und OBS-WebSocket. Damit kann OBS auf demselben PC getestet werden.')
 
 $right.Controls.Add((New-Label 'IPv4-Adresse des OBS-PCs' 20 58 250))
 $txtTargetIp = New-Object System.Windows.Forms.TextBox
@@ -1559,7 +1626,10 @@ $timer.Add_Tick({
                 }
                 Stop-Streaming
                 if ($failedEarly) {
-                    $failureText = if ($srtConnectionFailed) {
+                    $failureText = if ($srtConnectionFailed -and $chkLocalObsTest.Checked) {
+                        "Der lokale SRT-Empfänger in OBS ist nicht erreichbar.`r`n`r`nPrüfe, ob die NetCapture-Medienquelle in der gewählten OBS-Szene sichtbar und aktiv ist. Im lokalen Test ist keine Firewall-Freigabe erforderlich."
+                    }
+                    elseif ($srtConnectionFailed) {
                         "OBS wurde vorbereitet, aber die SRT-Verbindung ist trotzdem fehlgeschlagen.`r`n`r`nPrüfe auf dem OBS-PC die Windows-Firewall für die verwendeten UDP-Ports und kontrolliere, ob NetCapture die richtige IPv4-Adresse des OBS-PCs verwendet."
                     }
                     else {
@@ -1587,6 +1657,20 @@ $updateObsUrl = {
 $txtPort.Add_TextChanged($updateObsUrl)
 $numLatency.Add_ValueChanged($updateObsUrl)
 $txtPassphrase.Add_TextChanged($updateObsUrl)
+
+$chkLocalObsTest.Add_CheckedChanged({
+    if ($script:ApplyingLocalObsTestMode) { return }
+    if ($script:ObsConnected) { Disconnect-ObsWebSocket }
+    Set-LocalObsTestMode -Enabled $chkLocalObsTest.Checked -CaptureRemoteValues $true
+    if ($chkLocalObsTest.Checked) {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Lokaler Test ist aktiv.`r`n`r`n1. OBS auf diesem PC starten.`r`n2. In OBS unter Werkzeuge -> WebSocket-Servereinstellungen den Server aktivieren.`r`n3. Hier auf 'Lokal mit OBS verbinden' klicken.`r`n4. Szene wählen und 'Quelle einrichten' klicken.`r`n5. Danach die Übertragung starten.`r`n`r`nTipp: Bei Bildschirmaufnahme OBS minimieren oder Fenster-/Spielaufnahme wählen, damit kein Endlos-Spiegeleffekt entsteht.",
+            'OBS auf diesem PC testen',
+            'OK',
+            'Information'
+        ) | Out-Null
+    }
+})
 
 $btnStart.Add_Click({ Start-Streaming })
 $btnStop.Add_Click({ Stop-Streaming })
