@@ -5,7 +5,6 @@ on:
   push:
     branches: [main]
     paths:
-      - ".github/workflows/build-windows-installer.yml"
       - "AudioPipeCapture.cs"
       - "AudioPipeCapture.csproj"
       - "Build-AudioBridge.ps1"
@@ -82,8 +81,11 @@ jobs:
           $installer = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.2.exe"
           $checksum = "installer-output\SHA256.txt"
 
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $releaseExists = gh release list --limit 100 --json tagName |
+            ConvertFrom-Json |
+            Where-Object { $_.tagName -eq $tag }
+
+          if ($releaseExists) {
             gh release upload $tag $installer $checksum --clobber
           }
           else {
