@@ -38,20 +38,23 @@ jobs:
           $tag = "v0.6.2"
           $installer = "release-files\installer-output\CrazyBatto-NetCapture-Setup-v0.6.2.exe"
           $checksum = "release-files\installer-output\SHA256.txt"
+          $zip = "release-files\CrazyBatto-NetCapture-Setup-v0.6.2.zip"
 
           if (-not (Test-Path -LiteralPath $installer)) {
             throw "Die fertige Setup-Datei wurde im Build-Artefakt nicht gefunden."
           }
+
+          Compress-Archive -LiteralPath $installer, $checksum -DestinationPath $zip -Force
 
           $releaseExists = gh release list --limit 100 --json tagName |
             ConvertFrom-Json |
             Where-Object { $_.tagName -eq $tag }
 
           if ($releaseExists) {
-            gh release upload $tag $installer $checksum --clobber
+            gh release upload $tag $installer $checksum $zip --clobber
           }
           else {
-            gh release create $tag $installer $checksum `
+            gh release create $tag $installer $checksum $zip `
               --target $env:GITHUB_SHA `
               --title "CrazyBatto NetCapture v0.6.2" `
               --notes-file "RELEASE-NOTES-v0.6.2.md" `
