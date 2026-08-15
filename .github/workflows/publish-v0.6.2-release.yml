@@ -1,0 +1,63 @@
+name: NetCapture v0.6.2 veröffentlichen
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-v0.6.2-release.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  release:
+    name: Setup.exe als öffentlichen Download veröffentlichen
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+
+      - name: Bereits erstellten Windows-Build laden
+        uses: actions/download-artifact@v5
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: 31908925862
+          name: CrazyBatto-NetCapture-v0.6.2-Windows
+          path: release-files
+
+      - name: Öffentlichen Release erstellen
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v0.6.2"
+          $installer = "release-files\installer-output\CrazyBatto-NetCapture-Setup-v0.6.2.exe"
+          $checksum = "release-files\installer-output\SHA256.txt"
+
+          if (-not (Test-Path -LiteralPath $installer)) {
+            throw "Die fertige Setup-Datei wurde im Build-Artefakt nicht gefunden."
+          }
+
+          $releaseExists = gh release list --limit 100 --json tagName |
+            ConvertFrom-Json |
+            Where-Object { $_.tagName -eq $tag }
+
+          if ($releaseExists) {
+            gh release upload $tag $installer $checksum --clobber
+          }
+          else {
+            gh release create $tag $installer $checksum `
+              --target $env:GITHUB_SHA `
+              --title "CrazyBatto NetCapture v0.6.2" `
+              --notes-file "RELEASE-NOTES-v0.6.2.md" `
+              --latest
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Der öffentliche GitHub-Release konnte nicht erstellt werden."
+          }
