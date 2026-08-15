@@ -43,6 +43,21 @@ jobs:
         shell: powershell
         run: .\Build-Launcher.ps1 -Force
 
+      - name: PowerShell-Syntax pruefen
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path .\NetCapture.ps1),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw "NetCapture.ps1 contains syntax errors."
+          }
+
       - name: Geprüften FFmpeg-Build laden
         shell: powershell
         run: .\Download-FFmpeg.ps1
@@ -62,11 +77,11 @@ jobs:
       - name: Build-Artefakte hochladen
         uses: actions/upload-artifact@v4
         with:
-          name: CrazyBatto-NetCapture-v0.6.3-Windows
+          name: CrazyBatto-NetCapture-v0.6.4-Windows
           if-no-files-found: error
           retention-days: 30
           path: |
-            installer-output/CrazyBatto-NetCapture-Setup-v0.6.3*
+            installer-output/CrazyBatto-NetCapture-Setup-v0.6.4*
             installer-output/SHA256.txt
             third_party/naudio/AudioPipeCapture.dll
             third_party/launcher/NetCapture.exe
@@ -77,8 +92,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v0.6.3"
-          $package = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.3.zip"
+          $tag = "v0.6.4"
+          $package = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.4.zip"
           $checksum = "installer-output\SHA256.txt"
 
           $releaseExists = gh release list --limit 100 --json tagName |
@@ -91,8 +106,8 @@ jobs:
           else {
             gh release create $tag $package $checksum `
               --target $env:GITHUB_SHA `
-              --title "CrazyBatto NetCapture v0.6.3 - Fehler 4551 Korrektur" `
-              --notes-file "RELEASE-NOTES-v0.6.3.md" `
+              --title "CrazyBatto NetCapture v0.6.4 - Startkorrektur" `
+              --notes-file "RELEASE-NOTES-v0.6.4.md" `
               --latest
           }
 

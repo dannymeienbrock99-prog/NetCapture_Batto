@@ -1,5 +1,5 @@
 ﻿#define MyAppName "Crazy_Batto NetCapture"
-#define MyAppVersion "0.6.3"
+#define MyAppVersion "0.6.4"
 #define MyAppPublisher "Crazy_Batto Software"
 #define MyAppExeName "NetCapture.exe"
 
@@ -14,10 +14,10 @@ VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=Netzwerk-Capture-Karte für OBS
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
-DefaultDirName={localappdata}\Programs\Crazy_Batto\NetCapture
+DefaultDirName={autopf}\Crazy_Batto\NetCapture
 DefaultGroupName=Crazy_Batto
 DisableProgramGroupPage=yes
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
@@ -32,7 +32,7 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 UseSetupLdr=no
 OutputDir=..\installer-output
-OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.3
+OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.4
 SetupIconFile=..\assets\NetCapture.ico
 LicenseFile=..\LICENSE.txt
 UninstallDisplayIcon={app}\NetCapture.ico
@@ -44,7 +44,7 @@ RestartApplications=no
 ChangesEnvironment=no
 SetupLogging=yes
 AllowNoIcons=yes
-UsePreviousAppDir=yes
+UsePreviousAppDir=no
 UsePreviousTasks=yes
 
 [Languages]
@@ -63,7 +63,7 @@ Name: "startmenuicon"; Description: "Startmenü-Verknüpfung erstellen"; GroupDe
 Source: "..\NetCapture.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\third_party\launcher\NetCapture.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\RELEASE-NOTES-v0.6.3.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\RELEASE-NOTES-v0.6.4.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\NetCapture.ico"; DestDir: "{app}"; Flags: ignoreversion

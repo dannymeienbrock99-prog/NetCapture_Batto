@@ -38,7 +38,7 @@ def main() -> None:
     assert icon.is_file(), "missing file: assets/NetCapture.ico"
     assert icon.read_bytes()[:4] == b"\x00\x00\x01\x00", "invalid Windows icon header"
     readme = require("README.md")
-    release_notes = require("RELEASE-NOTES-v0.6.3.md")
+    release_notes = require("RELEASE-NOTES-v0.6.4.md")
     require("LICENSE.txt")
     require("THIRD-PARTY-NOTICES.md")
 
@@ -87,7 +87,9 @@ def main() -> None:
     assert "JRSoftware.InnoSetup" in builder
     assert "Build-Launcher.ps1" in builder
     assert "SkipLauncherBuild" in builder
-    assert "PrivilegesRequired=lowest" in installer
+    assert "PrivilegesRequired=admin" in installer
+    assert "DefaultDirName={autopf}\\Crazy_Batto\\NetCapture" in installer
+    assert "UsePreviousAppDir=no" in installer
     assert "Uninstallable=yes" in installer
     assert "[UninstallDelete]" in installer
     assert "DisableWelcomePage=no" in installer
@@ -95,8 +97,8 @@ def main() -> None:
     assert "Willkommen beim Installations-Assistenten" in installer
     assert "third_party\\ffmpeg\\ffmpeg.exe" in installer
     assert "third_party\\launcher\\NetCapture.exe" in installer
-    assert "RELEASE-NOTES-v0.6.3.md" in installer
-    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.3" in installer
+    assert "RELEASE-NOTES-v0.6.4.md" in installer
+    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.4" in installer
     assert "UseSetupLdr=no" in installer, "setup must not execute a loader from the Windows TEMP directory"
     assert "ArchitecturesAllowed=x64compatible" in installer
     assert "ArchitecturesInstallIn64BitMode=x64compatible" in installer
@@ -145,9 +147,14 @@ def main() -> None:
     assert "NAudio.Core.dll" in audio_project and "NAudio.Wasapi.dll" in audio_project
     assert "dotnet" in audio_builder and "AudioPipeCapture.dll" in audio_builder
     assert "ProcessStartInfo" in launcher
-    assert 'FileName = "powershell.exe"' in launcher
+    assert "FileName = powershellPath" in launcher
     assert "CreateNoWindow = true" in launcher
     assert "WindowStyle = ProcessWindowStyle.Hidden" in launcher
+    assert '"WindowsPowerShell"' in launcher
+    assert '"launcher.log"' in launcher
+    assert "RedirectStandardError = true" in launcher
+    assert "process.WaitForExit();" in launcher
+    assert "NetCapture - Startfehler" in launcher
     assert "<OutputType>WinExe</OutputType>" in launcher_project
     assert "<TargetFramework>net472</TargetFramework>" in launcher_project
     assert "<ApplicationIcon>assets\\NetCapture.ico</ApplicationIcon>" in launcher_project
@@ -158,11 +165,11 @@ def main() -> None:
     assert "Build-Launcher.ps1 -Force" in workflow
     assert "Download-FFmpeg.ps1" in workflow
     assert "Build-Installer.ps1 -SkipAudioBuild -SkipLauncherBuild" in workflow
-    assert "CrazyBatto-NetCapture-Setup-v0.6.3.zip" in workflow
-    assert "CrazyBatto-NetCapture-v0.6.3-Windows" in workflow
+    assert "CrazyBatto-NetCapture-Setup-v0.6.4.zip" in workflow
+    assert "CrazyBatto-NetCapture-v0.6.4-Windows" in workflow
     assert "Compress-Archive" in builder
     assert "$setupParts.Count -lt 2" in builder
-    assert "$script:AppVersion = '0.6.3'" in script
+    assert "$script:AppVersion = '0.6.4'" in script
     assert "timeout=5000000" not in script, "OBS listener must not expire after five seconds"
     assert "$script:SrtConnectTimeoutMs = 20000" in script, "SRT caller timeout must be 20 seconds"
     assert "connect_timeout=$script:SrtConnectTimeoutMs" in script, "SRT caller URL must use the configured timeout"
