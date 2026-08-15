@@ -38,7 +38,7 @@ def main() -> None:
     assert icon.is_file(), "missing file: assets/NetCapture.ico"
     assert icon.read_bytes()[:4] == b"\x00\x00\x01\x00", "invalid Windows icon header"
     readme = require("README.md")
-    release_notes = require("RELEASE-NOTES-v0.6.2.md")
+    release_notes = require("RELEASE-NOTES-v0.6.3.md")
     require("LICENSE.txt")
     require("THIRD-PARTY-NOTICES.md")
 
@@ -95,8 +95,9 @@ def main() -> None:
     assert "Willkommen beim Installations-Assistenten" in installer
     assert "third_party\\ffmpeg\\ffmpeg.exe" in installer
     assert "third_party\\launcher\\NetCapture.exe" in installer
-    assert "RELEASE-NOTES-v0.6.2.md" in installer
-    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.2" in installer
+    assert "RELEASE-NOTES-v0.6.3.md" in installer
+    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.3" in installer
+    assert "UseSetupLdr=no" in installer, "setup must not execute a loader from the Windows TEMP directory"
     assert "ArchitecturesAllowed=x64compatible" in installer
     assert "ArchitecturesInstallIn64BitMode=x64compatible" in installer
     assert "SetupArchitecture=" not in installer, "SetupArchitecture requires Inno Setup 7"
@@ -157,7 +158,11 @@ def main() -> None:
     assert "Build-Launcher.ps1 -Force" in workflow
     assert "Download-FFmpeg.ps1" in workflow
     assert "Build-Installer.ps1 -SkipAudioBuild -SkipLauncherBuild" in workflow
-    assert "CrazyBatto-NetCapture-Setup-v0.6.2.exe" in workflow
+    assert "CrazyBatto-NetCapture-Setup-v0.6.3.zip" in workflow
+    assert "CrazyBatto-NetCapture-v0.6.3-Windows" in workflow
+    assert "Compress-Archive" in builder
+    assert "$setupParts.Count -lt 2" in builder
+    assert "$script:AppVersion = '0.6.3'" in script
     assert "timeout=5000000" not in script, "OBS listener must not expire after five seconds"
     assert "$script:SrtConnectTimeoutMs = 20000" in script, "SRT caller timeout must be 20 seconds"
     assert "connect_timeout=$script:SrtConnectTimeoutMs" in script, "SRT caller URL must use the configured timeout"

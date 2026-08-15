@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   installer:
-    name: NetCapture Setup.exe
+    name: NetCapture Setup ohne TEMP-Loader
     runs-on: windows-latest
     timeout-minutes: 30
 
@@ -62,11 +62,11 @@ jobs:
       - name: Build-Artefakte hochladen
         uses: actions/upload-artifact@v4
         with:
-          name: CrazyBatto-NetCapture-v0.6.2-Windows
+          name: CrazyBatto-NetCapture-v0.6.3-Windows
           if-no-files-found: error
           retention-days: 30
           path: |
-            installer-output/CrazyBatto-NetCapture-Setup-v0.6.2.exe
+            installer-output/CrazyBatto-NetCapture-Setup-v0.6.3*
             installer-output/SHA256.txt
             third_party/naudio/AudioPipeCapture.dll
             third_party/launcher/NetCapture.exe
@@ -77,8 +77,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v0.6.2"
-          $installer = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.2.exe"
+          $tag = "v0.6.3"
+          $package = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.3.zip"
           $checksum = "installer-output\SHA256.txt"
 
           $releaseExists = gh release list --limit 100 --json tagName |
@@ -86,13 +86,13 @@ jobs:
             Where-Object { $_.tagName -eq $tag }
 
           if ($releaseExists) {
-            gh release upload $tag $installer $checksum --clobber
+            gh release upload $tag $package $checksum --clobber
           }
           else {
-            gh release create $tag $installer $checksum `
+            gh release create $tag $package $checksum `
               --target $env:GITHUB_SHA `
-              --title "CrazyBatto NetCapture v0.6.2" `
-              --notes-file "RELEASE-NOTES-v0.6.2.md" `
+              --title "CrazyBatto NetCapture v0.6.3 – Fehler-4551-Korrektur" `
+              --notes-file "RELEASE-NOTES-v0.6.3.md" `
               --latest
           }
 

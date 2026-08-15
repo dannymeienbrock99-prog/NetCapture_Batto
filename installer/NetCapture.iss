@@ -1,5 +1,5 @@
 ﻿#define MyAppName "Crazy_Batto NetCapture"
-#define MyAppVersion "0.6.2"
+#define MyAppVersion "0.6.3"
 #define MyAppPublisher "Crazy_Batto Software"
 #define MyAppExeName "NetCapture.exe"
 
@@ -30,8 +30,9 @@ WizardImageStretch=yes
 WizardKeepAspectRatio=yes
 Compression=lzma2/ultra64
 SolidCompression=yes
+UseSetupLdr=no
 OutputDir=..\installer-output
-OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.2
+OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.3
 SetupIconFile=..\assets\NetCapture.ico
 LicenseFile=..\LICENSE.txt
 UninstallDisplayIcon={app}\NetCapture.ico
@@ -62,7 +63,7 @@ Name: "startmenuicon"; Description: "Startmenü-Verknüpfung erstellen"; GroupDe
 Source: "..\NetCapture.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\third_party\launcher\NetCapture.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\RELEASE-NOTES-v0.6.2.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\RELEASE-NOTES-v0.6.3.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\NetCapture.ico"; DestDir: "{app}"; Flags: ignoreversion

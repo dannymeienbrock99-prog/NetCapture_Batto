@@ -14,6 +14,7 @@ $launcherBuilder = Join-Path $root 'Build-Launcher.ps1'
 $launcher = Join-Path $root 'third_party\launcher\NetCapture.exe'
 $ffmpegDownloader = Join-Path $root 'Download-FFmpeg.ps1'
 $bundledFfmpeg = Join-Path $root 'third_party\ffmpeg\ffmpeg.exe'
+$setupBaseName = 'CrazyBatto-NetCapture-Setup-v0.6.3'
 
 function Find-InnoCompiler {
     $candidates = @(
@@ -91,23 +92,42 @@ if (-not $compiler) {
 }
 
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+Get-ChildItem -LiteralPath $outputDirectory -Filter "$setupBaseName*" -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
 Write-Host "Verwende Compiler: $compiler" -ForegroundColor DarkGray
-Write-Host 'Erstelle CrazyBatto-NetCapture-Setup-v0.6.2.exe ...' -ForegroundColor Cyan
+Write-Host 'Erstelle NetCapture v0.6.3 ohne temporären Setup-Loader ...' -ForegroundColor Cyan
 
 $build = Start-Process -FilePath $compiler -ArgumentList ('"' + $installerScript + '"') -Wait -PassThru -NoNewWindow
 if ($build.ExitCode -ne 0) {
     throw "Inno Setup meldete Fehlercode $($build.ExitCode)."
 }
 
-$setup = Join-Path $outputDirectory 'CrazyBatto-NetCapture-Setup-v0.6.2.exe'
+$setup = Join-Path $outputDirectory "$setupBaseName.exe"
 if (-not (Test-Path -LiteralPath $setup)) {
     throw "Der Compiler lief durch, aber die erwartete Setup-Datei fehlt: $setup"
 }
 
-$hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash
-Set-Content -LiteralPath (Join-Path $outputDirectory 'SHA256.txt') -Value "$hash  CrazyBatto-NetCapture-Setup-v0.6.2.exe" -Encoding ASCII
+$setupParts = @(Get-ChildItem -LiteralPath $outputDirectory -Filter "$setupBaseName*" -File |
+    Where-Object { $_.Extension -in @('.exe', '.bin') } |
+    Sort-Object Name)
+if ($setupParts.Count -lt 2) {
+    throw 'UseSetupLdr=no sollte eine EXE und mindestens eine BIN-Datei erzeugen, aber die Setup-Teile fehlen.'
+}
 
-Write-Host 'Installer erfolgreich erstellt:' -ForegroundColor Green
-Write-Host $setup -ForegroundColor White
-Write-Host "SHA-256: $hash" -ForegroundColor DarkGray
-Start-Process explorer.exe -ArgumentList ('/select,"' + $setup + '"')
+$hashFile = Join-Path $outputDirectory 'SHA256.txt'
+$hashLines = foreach ($part in $setupParts) {
+    $partHash = (Get-FileHash -LiteralPath $part.FullName -Algorithm SHA256).Hash
+    "$partHash  $($part.Name)"
+}
+Set-Content -LiteralPath $hashFile -Value $hashLines -Encoding ASCII
+
+$zip = Join-Path $outputDirectory "$setupBaseName.zip"
+Compress-Archive -LiteralPath (@($setupParts.FullName) + $hashFile) -DestinationPath $zip -Force
+$zipHash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+
+Write-Host 'Installer-Paket ohne TEMP-Loader erfolgreich erstellt:' -ForegroundColor Green
+Write-Host $zip -ForegroundColor White
+Write-Host "ZIP SHA-256: $zipHash" -ForegroundColor DarkGray
+if ($env:GITHUB_ACTIONS -ne 'true') {
+    Start-Process explorer.exe -ArgumentList ('/select,"' + $zip + '"')
+}
