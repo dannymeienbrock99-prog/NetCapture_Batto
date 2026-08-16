@@ -40,7 +40,7 @@ def main() -> None:
     assert struct.unpack_from("<H", icon.read_bytes(), 4)[0] == 7, "Windows icon must contain seven sizes"
     assert icon.stat().st_size > 300_000, "Team Alpha icon was not embedded"
     readme = require("README.md")
-    release_notes = require("RELEASE-NOTES-v0.6.7.md")
+    release_notes = require("RELEASE-NOTES-v0.6.8.md")
     require("LICENSE.txt")
     require("THIRD-PARTY-NOTICES.md")
 
@@ -48,6 +48,10 @@ def main() -> None:
         "monitor enumeration": "[System.Windows.Forms.Screen]::AllScreens",
         "capture mode selection": "Fensteraufnahme",
         "borderless game capture": "Spielaufnahme",
+        "UltraWide dual capture": "UltraWide Dual-Split",
+        "dual segmentation": "Get-DualSegmentLayout",
+        "two parallel FFmpeg processes": "$dualMode",
+        "custom output resolution": "$cmbResolution.DropDownStyle = 'DropDown'",
         "UltraWide triple capture": "UltraWide Triple-Split",
         "even triple segmentation": "Get-TripleSegmentLayout",
         "three parallel FFmpeg processes": "$script:FfmpegProcesses",
@@ -108,8 +112,8 @@ def main() -> None:
     assert "Willkommen beim Installations-Assistenten" in installer
     assert "third_party\\ffmpeg\\ffmpeg.exe" in installer
     assert "third_party\\launcher\\NetCapture.exe" in installer
-    assert "RELEASE-NOTES-v0.6.7.md" in installer
-    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.7" in installer
+    assert "RELEASE-NOTES-v0.6.8.md" in installer
+    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.8" in installer
     assert "UseSetupLdr=no" in installer, "setup must not execute a loader from the Windows TEMP directory"
     assert "ArchitecturesAllowed=x64compatible" in installer
     assert "ArchitecturesInstallIn64BitMode=x64compatible" in installer
@@ -177,11 +181,11 @@ def main() -> None:
     assert "Build-Launcher.ps1 -Force" in workflow
     assert "Download-FFmpeg.ps1" in workflow
     assert "Build-Installer.ps1 -SkipAudioBuild -SkipLauncherBuild" in workflow
-    assert "CrazyBatto-NetCapture-Setup-v0.6.7.zip" in workflow
-    assert "CrazyBatto-NetCapture-v0.6.7-Windows" in workflow
+    assert "CrazyBatto-NetCapture-Setup-v0.6.8.zip" in workflow
+    assert "CrazyBatto-NetCapture-v0.6.8-Windows" in workflow
     assert "Compress-Archive" in builder
     assert "$setupParts.Count -lt 2" in builder
-    assert "$script:AppVersion = '0.6.7'" in script
+    assert "$script:AppVersion = '0.6.8'" in script
     assert "$txtTargetIp.Text = '127.0.0.1'" in script
     assert "$txtObsHost.Text = '127.0.0.1'" in script
     assert "Firewall-Freigabe sind nicht erforderlich" in script
@@ -194,8 +198,17 @@ def main() -> None:
     assert "Trotzdem starten?" not in script, "unsafe start without OBS preflight must not remain"
     assert "SrtConnectionFailed" in script, "early FFmpeg errors must distinguish SRT failures"
     assert "includeAudio = $index -eq 0" in script, "triple mode must not duplicate audio in OBS"
+    assert "if ($dualMode) { 2 } elseif ($tripleMode) { 3 }" in script, "OBS must create two or three SRT listeners for split modes"
+    assert "basePort + [int]$segment.PortOffset" in script, "split streams must use consecutive ports"
+    assert "resolution = [string]$cmbResolution.Text" in script, "custom output resolution must be persisted"
     assert "if (($baseWidth % 2) -ne 0)" in script, "H.264 triple widths must be even"
-    assert "basePort + [int]$segment.PortOffset" in script, "triple streams must use consecutive ports"
+    dual_total_width = 11620
+    dual_left_width = dual_total_width // 2
+    if dual_left_width % 2:
+        dual_left_width -= 1
+    dual_widths = (dual_left_width, dual_total_width - dual_left_width)
+    assert dual_widths == (5810, 5810)
+    assert sum(dual_widths) == dual_total_width and all(width % 2 == 0 for width in dual_widths)
     triple_total_width = 11620
     triple_base_width = triple_total_width // 3
     if triple_base_width % 2:

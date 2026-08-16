@@ -77,11 +77,11 @@ jobs:
       - name: Build-Artefakte hochladen
         uses: actions/upload-artifact@v4
         with:
-          name: CrazyBatto-NetCapture-v0.6.7-Windows
+          name: CrazyBatto-NetCapture-v0.6.8-Windows
           if-no-files-found: error
           retention-days: 30
           path: |
-            installer-output/CrazyBatto-NetCapture-Setup-v0.6.7*
+            installer-output/CrazyBatto-NetCapture-Setup-v0.6.8*
             installer-output/SHA256.txt
             third_party/naudio/AudioPipeCapture.dll
             third_party/launcher/NetCapture.exe
@@ -92,8 +92,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "v0.6.7"
-          $package = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.7.zip"
+          $tag = "v0.6.8"
+          $package = "installer-output\CrazyBatto-NetCapture-Setup-v0.6.8.zip"
           $checksum = "installer-output\SHA256.txt"
 
           $releaseExists = gh release list --limit 100 --json tagName |
@@ -106,8 +106,8 @@ jobs:
           else {
             gh release create $tag $package $checksum `
               --target $env:GITHUB_SHA `
-              --title "CrazyBatto NetCapture v0.6.7 - Team-Alpha-Logo" `
-              --notes-file "RELEASE-NOTES-v0.6.7.md" `
+              --title "CrazyBatto NetCapture v0.6.8 - UltraWide Dual-Split" `
+              --notes-file "RELEASE-NOTES-v0.6.8.md" `
               --latest
           }
 

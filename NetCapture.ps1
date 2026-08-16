@@ -22,7 +22,7 @@ public static class NetCaptureDpi {
 catch { }
 
 $script:AppName = 'Crazy_Batto NetCapture'
-$script:AppVersion = '0.6.7'
+$script:AppVersion = '0.6.8'
 $script:SrtConnectTimeoutMs = 20000
 $script:BasePath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:ConfigPath = Join-Path $env:APPDATA 'CrazyBatto\NetCapture\settings.json'
@@ -117,7 +117,7 @@ function Refresh-CaptureTargets {
     $cmbMonitor.Items.Clear()
     $script:CaptureWindows = @()
 
-    if ($selectedMode -eq 'Bildschirm' -or $selectedMode -eq 'UltraWide Triple-Split') {
+    if ($selectedMode -eq 'Bildschirm' -or $selectedMode -eq 'UltraWide Dual-Split' -or $selectedMode -eq 'UltraWide Triple-Split') {
         $lblCaptureTarget.Text = if ($selectedMode -eq 'Bildschirm') { 'Bildschirm' } else { 'UltraWide-Bildschirm' }
         Refresh-Monitors
         for ($i = 0; $i -lt $script:Monitors.Count; $i++) {
@@ -315,13 +315,22 @@ function Test-TargetAddress {
 
 function Get-Resolution {
     param([int]$SourceWidth, [int]$SourceHeight, [string]$Selection)
-    switch ($Selection) {
-        '1280x720'  { return @(1280, 720) }
-        '1920x1080' { return @(1920, 1080) }
-        '2560x1440' { return @(2560, 1440) }
-        '3840x2160' { return @(3840, 2160) }
-        default     { return @($SourceWidth, $SourceHeight) }
+    if ([string]::IsNullOrWhiteSpace($Selection) -or $Selection.Trim() -eq 'Original') {
+        return @($SourceWidth, $SourceHeight)
     }
+    $resolutionMatch = [regex]::Match($Selection.Trim(), '^(\d{3,4})\s*[xX×]\s*(\d{3,4})$')
+    if (-not $resolutionMatch.Success) {
+        throw 'Die Ausgabeauflösung muss „Original“ oder BreitexHöhe sein, zum Beispiel 3440x1440.'
+    }
+    $width = [int]$resolutionMatch.Groups[1].Value
+    $height = [int]$resolutionMatch.Groups[2].Value
+    if ($width -lt 160 -or $height -lt 120 -or $width -gt 4096 -or $height -gt 4096) {
+        throw "Die Ausgabeauflösung muss zwischen 160x120 und 4096x4096 liegen. Gefunden: ${width}x${height}."
+    }
+    if (($width % 2) -ne 0 -or ($height % 2) -ne 0) {
+        throw "Für H.264 müssen Breite und Höhe gerade sein. Gefunden: ${width}x${height}."
+    }
+    return @($width, $height)
 }
 
 function Escape-Argument {
@@ -396,6 +405,51 @@ function Get-TripleSegmentLayout {
     return $result.ToArray()
 }
 
+function Get-DualSegmentLayout {
+    if ($cmbMonitor.SelectedIndex -lt 0 -or $cmbMonitor.SelectedIndex -ge $script:Monitors.Count) {
+        throw 'Bitte einen UltraWide-/Surround-Bildschirm auswählen.'
+    }
+    $screen = $script:Monitors[$cmbMonitor.SelectedIndex]
+    $totalWidth = [int]$screen.Bounds.Width
+    $captureHeight = [int]$screen.Bounds.Height
+    if (($totalWidth % 2) -ne 0 -or ($captureHeight % 2) -ne 0) {
+        throw "Für H.264 muss die UltraWide-Auflösung gerade Pixelmaße haben. Gefunden: ${totalWidth}x${captureHeight}."
+    }
+
+    $leftCaptureWidth = [int][Math]::Floor($totalWidth / 2)
+    if (($leftCaptureWidth % 2) -ne 0) { $leftCaptureWidth-- }
+    $captureWidths = @($leftCaptureWidth, ($totalWidth - $leftCaptureWidth))
+    $labels = @('Links', 'Rechts')
+    $result = [System.Collections.Generic.List[object]]::new()
+    $captureRelativeX = 0
+    $outputRelativeX = 0
+
+    for ($index = 0; $index -lt 2; $index++) {
+        $captureWidth = [int]$captureWidths[$index]
+        if ($captureWidth -lt 160 -or $captureHeight -lt 120) { throw 'Der ausgewählte Bildschirm ist für Dual-Split zu klein.' }
+        $outputSize = Get-Resolution -SourceWidth $captureWidth -SourceHeight $captureHeight -Selection ([string]$cmbResolution.Text)
+        $outputWidth = [int]$outputSize[0]
+        $outputHeight = [int]$outputSize[1]
+        if ($outputWidth -gt 4096 -or $outputHeight -gt 4096) {
+            throw "Dual-Split überschreitet pro Teil die H.264-Grenze von 4096x4096. Wähle eine kleinere Ausgabeauflösung, zum Beispiel 3840x2160."
+        }
+        [void]$result.Add([pscustomobject]@{
+            Label = $labels[$index]
+            Width = $outputWidth
+            Height = $outputHeight
+            CaptureWidth = $captureWidth
+            CaptureHeight = $captureHeight
+            RelativeX = $outputRelativeX
+            CaptureX = ([int]$screen.Bounds.X + $captureRelativeX)
+            CaptureY = [int]$screen.Bounds.Y
+            PortOffset = $index
+        })
+        $captureRelativeX += $captureWidth
+        $outputRelativeX += $outputWidth
+    }
+    return $result.ToArray()
+}
+
 function Build-StreamSet {
     $ffmpeg = Find-FFmpeg
     if (-not $ffmpeg) { throw 'FFmpeg wurde nicht gefunden. Klicke auf „FFmpeg installieren“.' }
@@ -408,14 +462,22 @@ function Build-StreamSet {
     }
 
     $captureMode = [string]$cmbCaptureMode.SelectedItem
+    $dualMode = $captureMode -eq 'UltraWide Dual-Split'
     $tripleMode = $captureMode -eq 'UltraWide Triple-Split'
+    $splitMode = $dualMode -or $tripleMode
+    if ($dualMode -and $basePort -gt 65534) { throw 'Für Dual-Split muss der Basisport höchstens 65534 sein.' }
     if ($tripleMode -and $basePort -gt 65533) { throw 'Für Triple-Split muss der Basisport höchstens 65533 sein.' }
     $fps = [int]$cmbFps.SelectedItem
     $bitrate = [int]$numBitrate.Value
     $latencyMs = [int]$numLatency.Value
     $captureSegments = [System.Collections.Generic.List[object]]::new()
 
-    if ($tripleMode) {
+    if ($dualMode) {
+        foreach ($segment in @(Get-DualSegmentLayout)) { [void]$captureSegments.Add($segment) }
+        $captureDescription = [string]$cmbMonitor.SelectedItem
+        Add-Log "UltraWide Dual-Split: $captureDescription wird in zwei Aufnahmehälften geteilt. Ausgabe links: $($captureSegments[0].Width)x$($captureSegments[0].Height), rechts: $($captureSegments[1].Width)x$($captureSegments[1].Height)."
+    }
+    elseif ($tripleMode) {
         foreach ($segment in @(Get-TripleSegmentLayout)) { [void]$captureSegments.Add($segment) }
         $captureDescription = [string]$cmbMonitor.SelectedItem
         Add-Log "UltraWide Triple-Split: $captureDescription wird in $($captureSegments[0].Width)x$($captureSegments[0].Height), $($captureSegments[1].Width)x$($captureSegments[1].Height) und $($captureSegments[2].Width)x$($captureSegments[2].Height) geteilt."
@@ -423,7 +485,7 @@ function Build-StreamSet {
     elseif ($captureMode -eq 'Bildschirm') {
         if ($cmbMonitor.SelectedIndex -ge $script:Monitors.Count) { throw 'Der gewählte Bildschirm ist nicht mehr verfügbar. Bitte die Quellenliste aktualisieren.' }
         $screen = $script:Monitors[$cmbMonitor.SelectedIndex]
-        $size = Get-Resolution -SourceWidth $screen.Bounds.Width -SourceHeight $screen.Bounds.Height -Selection ([string]$cmbResolution.SelectedItem)
+        $size = Get-Resolution -SourceWidth $screen.Bounds.Width -SourceHeight $screen.Bounds.Height -Selection ([string]$cmbResolution.Text)
         [void]$captureSegments.Add([pscustomobject]@{
             Label = 'Bildschirm'
             Width = [int]$size[0]
@@ -440,7 +502,7 @@ function Build-StreamSet {
         if ($cmbMonitor.SelectedIndex -ge $script:CaptureWindows.Count) { throw 'Das gewählte Fenster ist nicht mehr verfügbar. Bitte die Quellenliste aktualisieren.' }
         $captureWindow = $script:CaptureWindows[$cmbMonitor.SelectedIndex]
         if ([string]::IsNullOrWhiteSpace([string]$captureWindow.Title)) { throw 'Das gewählte Fenster besitzt keinen gültigen Titel.' }
-        $size = Get-Resolution -SourceWidth $captureWindow.Width -SourceHeight $captureWindow.Height -Selection ([string]$cmbResolution.SelectedItem)
+        $size = Get-Resolution -SourceWidth $captureWindow.Width -SourceHeight $captureWindow.Height -Selection ([string]$cmbResolution.Text)
         [void]$captureSegments.Add([pscustomobject]@{
             Label = if ($captureMode -eq 'Spielaufnahme') { 'Spiel' } else { 'Fenster' }
             Width = [int]$size[0]
@@ -487,9 +549,9 @@ function Build-StreamSet {
         $arguments = [System.Collections.Generic.List[string]]::new()
         @('-hide_banner', '-loglevel', 'info', '-nostats', '-thread_queue_size', '1024') | ForEach-Object { [void]$arguments.Add([string]$_) }
 
-        if ($tripleMode -or $captureMode -eq 'Bildschirm') {
-            $captureWidth = if ($tripleMode) { [int]$segment.Width } else { [int]$segment.SourceWidth }
-            $captureHeight = if ($tripleMode) { [int]$segment.Height } else { [int]$segment.SourceHeight }
+        if ($splitMode -or $captureMode -eq 'Bildschirm') {
+            $captureWidth = if ($dualMode) { [int]$segment.CaptureWidth } elseif ($tripleMode) { [int]$segment.Width } else { [int]$segment.SourceWidth }
+            $captureHeight = if ($dualMode) { [int]$segment.CaptureHeight } elseif ($tripleMode) { [int]$segment.Height } else { [int]$segment.SourceHeight }
             @('-f', 'gdigrab', '-framerate', "$fps", '-draw_mouse', $(if ($chkMouse.Checked) { '1' } else { '0' }), '-offset_x', "$($segment.CaptureX)", '-offset_y', "$($segment.CaptureY)", '-video_size', "${captureWidth}x${captureHeight}", '-i', 'desktop') |
                 ForEach-Object { [void]$arguments.Add([string]$_) }
         }
@@ -536,7 +598,8 @@ function Build-StreamSet {
         Executable = $ffmpeg
         AudioCapture = $audioCapture
         AudioPipeName = $audioPipeName
-        TripleMode = $tripleMode
+        SplitMode = $splitMode
+        StreamCount = $streamPlans.Count
     }
 }
 
@@ -551,7 +614,7 @@ function Get-ObsUrls {
     if (-not [string]::IsNullOrWhiteSpace($txtPassphrase.Text)) {
         $query += "&pbkeylen=16&passphrase=$([System.Uri]::EscapeDataString($txtPassphrase.Text))"
     }
-    $count = if ($cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') { 3 } else { 1 }
+    $count = if ($cmbCaptureMode.SelectedItem -eq 'UltraWide Dual-Split') { 2 } elseif ($cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') { 3 } else { 1 }
     $urls = [System.Collections.Generic.List[string]]::new()
     for ($index = 0; $index -lt $count; $index++) {
         $port = $basePort + $index
@@ -921,17 +984,20 @@ function Set-ObsMediaSource {
 
     $sceneName = [string]$cmbObsScene.SelectedItem
     $urls = @(Get-ObsUrls)
+    $dualMode = $cmbCaptureMode.SelectedItem -eq 'UltraWide Dual-Split'
     $tripleMode = $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split'
+    $splitMode = $dualMode -or $tripleMode
+    if ($dualMode -and $basePort -gt 65534) { throw 'Für Dual-Split muss der SRT-Basisport höchstens 65534 sein.' }
     if ($tripleMode -and $basePort -gt 65533) { throw 'Für Triple-Split muss der SRT-Basisport höchstens 65533 sein.' }
-    $sourceCount = if ($tripleMode) { 3 } else { 1 }
-    $segments = if ($tripleMode) { @(Get-TripleSegmentLayout) } else { @($null) }
+    $sourceCount = if ($dualMode) { 2 } elseif ($tripleMode) { 3 } else { 1 }
+    $segments = if ($dualMode) { @(Get-DualSegmentLayout) } elseif ($tripleMode) { @(Get-TripleSegmentLayout) } else { @($null) }
     $preparedSources = [System.Collections.Generic.List[string]]::new()
 
     for ($index = 0; $index -lt $sourceCount; $index++) {
-        $sourceName = if ($tripleMode) { "$baseSourceName - $($segments[$index].Label)" } else { $baseSourceName }
+        $sourceName = if ($splitMode) { "$baseSourceName - $($segments[$index].Label)" } else { $baseSourceName }
         $result = Ensure-ObsMediaSource -SceneName $sceneName -SourceName $sourceName -InputUrl $urls[$index]
 
-        if ($tripleMode) {
+        if ($splitMode) {
             Invoke-ObsRequest -RequestType 'SetSceneItemTransform' -RequestData ([ordered]@{
                 sceneName = $sceneName
                 sceneItemId = [int]$result.SceneItemId
@@ -965,7 +1031,10 @@ function Set-ObsMediaSource {
     }
 
     Save-Settings
-    $message = if ($tripleMode) {
+    $message = if ($dualMode) {
+        "Zwei Medienquellen wurden in OBS eingerichtet und nebeneinander positioniert.`r`n`r`nLinks: Port $basePort`r`nRechts: Port $($basePort + 1)`r`nAusgabe pro Teil: $($segments[0].Width)x$($segments[0].Height)`r`nOBS-Gesamtbreite: $($segments[0].Width + $segments[1].Width)x$($segments[0].Height)`r`n`r`nJetzt in NetCapture die Übertragung starten."
+    }
+    elseif ($tripleMode) {
         "Drei Medienquellen wurden in OBS eingerichtet und nebeneinander positioniert.`r`n`r`nLinks: Port $basePort`r`nMitte: Port $($basePort + 1)`r`nRechts: Port $($basePort + 2)`r`n`r`nDie OBS-Basisleinwand sollte der gesamten UltraWide-Auflösung entsprechen. Jetzt in NetCapture die Übertragung starten."
     }
     else {
@@ -1061,7 +1130,7 @@ function Start-Streaming {
 
         $btnStart.Enabled = $false
         $btnStop.Enabled = $true
-        $lblStatus.Text = if ($streamSet.TripleMode) { '● 3 STREAMS LAUFEN' } else { '● ÜBERTRAGUNG LÄUFT' }
+        $lblStatus.Text = if ($streamSet.SplitMode) { "● $($streamSet.StreamCount) STREAMS LAUFEN" } else { '● ÜBERTRAGUNG LÄUFT' }
         $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(61, 220, 151)
         Save-Settings
     }
@@ -1140,12 +1209,13 @@ function Save-Settings {
         }
         $selectedCaptureWindowTitle = $null
         if ($cmbCaptureMode.SelectedItem -ne 'Bildschirm' -and
+            $cmbCaptureMode.SelectedItem -ne 'UltraWide Dual-Split' -and
             $cmbCaptureMode.SelectedItem -ne 'UltraWide Triple-Split' -and
             $cmbMonitor.SelectedIndex -ge 0 -and
             $cmbMonitor.SelectedIndex -lt $script:CaptureWindows.Count) {
             $selectedCaptureWindowTitle = [string]$script:CaptureWindows[$cmbMonitor.SelectedIndex].Title
         }
-        if (($cmbCaptureMode.SelectedItem -eq 'Bildschirm' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') -and $cmbMonitor.SelectedIndex -ge 0) {
+        if (($cmbCaptureMode.SelectedItem -eq 'Bildschirm' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Dual-Split' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') -and $cmbMonitor.SelectedIndex -ge 0) {
             $script:SavedMonitorIndex = $cmbMonitor.SelectedIndex
         }
         if (-not $chkLocalObsTest.Checked) {
@@ -1160,7 +1230,7 @@ function Save-Settings {
             localObsTest = $chkLocalObsTest.Checked
             port = $txtPort.Text.Trim()
             fps = [string]$cmbFps.SelectedItem
-            resolution = [string]$cmbResolution.SelectedItem
+            resolution = [string]$cmbResolution.Text
             bitrate = [int]$numBitrate.Value
             latency = [int]$numLatency.Value
             encoder = [string]$cmbEncoder.SelectedItem
@@ -1195,7 +1265,7 @@ function Load-Settings {
         }
         if ($settings.port) { $txtPort.Text = [string]$settings.port }
         if ($settings.fps -and $cmbFps.Items.Contains([string]$settings.fps)) { $cmbFps.SelectedItem = [string]$settings.fps }
-        if ($settings.resolution -and $cmbResolution.Items.Contains([string]$settings.resolution)) { $cmbResolution.SelectedItem = [string]$settings.resolution }
+        if ($settings.resolution) { $cmbResolution.Text = [string]$settings.resolution }
         if ($settings.encoder -and $cmbEncoder.Items.Contains([string]$settings.encoder)) { $cmbEncoder.SelectedItem = [string]$settings.encoder }
         if ($settings.bitrate) { $numBitrate.Value = [decimal]$settings.bitrate }
         if ($settings.latency) { $numLatency.Value = [decimal]$settings.latency }
@@ -1338,7 +1408,7 @@ $cmbCaptureMode = New-Object System.Windows.Forms.ComboBox
 $cmbCaptureMode.Location = New-Object System.Drawing.Point(20, 80)
 $cmbCaptureMode.Size = New-Object System.Drawing.Size(140, 28)
 $cmbCaptureMode.DropDownStyle = 'DropDownList'
-@('Bildschirm', 'Fensteraufnahme', 'Spielaufnahme', 'UltraWide Triple-Split') | ForEach-Object { [void]$cmbCaptureMode.Items.Add($_) }
+@('Bildschirm', 'Fensteraufnahme', 'Spielaufnahme', 'UltraWide Dual-Split', 'UltraWide Triple-Split') | ForEach-Object { [void]$cmbCaptureMode.Items.Add($_) }
 $cmbCaptureMode.SelectedItem = 'Bildschirm'
 $cmbCaptureMode.DropDownWidth = 210
 Style-Control $cmbCaptureMode
@@ -1360,15 +1430,15 @@ Style-Control $btnCaptureRefresh
 $left.Controls.Add($btnCaptureRefresh)
 
 $captureToolTip = New-Object System.Windows.Forms.ToolTip
-$captureToolTip.SetToolTip($cmbCaptureMode, 'UltraWide Triple-Split teilt einen breiten Surround-Bildschirm auf drei SRT-Streams und Ports auf.')
+$captureToolTip.SetToolTip($cmbCaptureMode, 'Dual-Split teilt in zwei frei skalierbare Ausgaben; Triple-Split teilt in drei Original-Teilbilder.')
 $captureToolTip.SetToolTip($btnCaptureRefresh, 'Liste der Bildschirme, Fenster oder Spiele aktualisieren')
 
-$left.Controls.Add((New-Label 'Ausgabeauflösung' 20 123 170))
+$left.Controls.Add((New-Label 'Ausgabeauflösung (pro Teil)' 20 123 190))
 $left.Controls.Add((New-Label 'Bildrate' 216 123 120))
 $cmbResolution = New-Object System.Windows.Forms.ComboBox
 $cmbResolution.Location = New-Object System.Drawing.Point(20, 145)
 $cmbResolution.Size = New-Object System.Drawing.Size(176, 28)
-$cmbResolution.DropDownStyle = 'DropDownList'
+$cmbResolution.DropDownStyle = 'DropDown'
 @('Original', '1280x720', '1920x1080', '2560x1440', '3840x2160') | ForEach-Object { [void]$cmbResolution.Items.Add($_) }
 $cmbResolution.SelectedItem = '1920x1080'
 Style-Control $cmbResolution
@@ -1740,12 +1810,18 @@ $chkLocalObsTest.Add_CheckedChanged({
 $btnStart.Add_Click({ Start-Streaming })
 $btnStop.Add_Click({ Stop-Streaming })
 $cmbCaptureMode.Add_SelectedIndexChanged({
+    $dualMode = $cmbCaptureMode.SelectedItem -eq 'UltraWide Dual-Split'
     $tripleMode = $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split'
     $cmbResolution.Enabled = -not $tripleMode
     if ($tripleMode) {
         $cmbResolution.SelectedItem = 'Original'
         if ($numBitrate.Value -lt 30000) { $numBitrate.Value = 30000 }
         $lblSrtHelp.Text = 'Triple-Split nutzt Basisport, Basisport +1 und +2 (z. B. 9000–9002).'
+    }
+    elseif ($dualMode) {
+        if ([string]::IsNullOrWhiteSpace($cmbResolution.Text) -or $cmbResolution.Text -eq 'Original') { $cmbResolution.Text = '3840x2160' }
+        if ($numBitrate.Value -lt 30000) { $numBitrate.Value = 30000 }
+        $lblSrtHelp.Text = 'Dual-Split nutzt Basisport und Basisport +1 (z. B. 9000–9001). Auflösung gilt pro Teil.'
     }
     else {
         $lblSrtHelp.Text = 'Bild/Ton: gleicher UDP-Port in NetCapture, OBS und Firewall.'
@@ -1754,7 +1830,7 @@ $cmbCaptureMode.Add_SelectedIndexChanged({
     & $updateObsUrl
 })
 $cmbMonitor.Add_SelectedIndexChanged({
-    if (($cmbCaptureMode.SelectedItem -eq 'Bildschirm' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') -and $cmbMonitor.SelectedIndex -ge 0) {
+    if (($cmbCaptureMode.SelectedItem -eq 'Bildschirm' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Dual-Split' -or $cmbCaptureMode.SelectedItem -eq 'UltraWide Triple-Split') -and $cmbMonitor.SelectedIndex -ge 0) {
         $script:SavedMonitorIndex = $cmbMonitor.SelectedIndex
     }
     elseif ($cmbMonitor.SelectedIndex -ge 0 -and $cmbMonitor.SelectedIndex -lt $script:CaptureWindows.Count) {
@@ -1765,7 +1841,7 @@ $btnCaptureRefresh.Add_Click({ Refresh-CaptureTargets })
 $btnAudioRefresh.Add_Click({ Refresh-AudioDevices })
 $btnSrtHelp.Add_Click({
     [System.Windows.Forms.MessageBox]::Show(
-        "Der SRT-Port ist der UDP-Netzwerkanschluss für Bild und Ton.`r`n`r`nStandard: 9000`r`n`r`nIm normalen Modus wird nur dieser Port verwendet. UltraWide Triple-Split verwendet den Basisport sowie die nächsten zwei Ports, also bei 9000 die UDP-Ports 9000, 9001 und 9002. Alle verwendeten Ports müssen auf dem OBS-PC in der Windows-Firewall für eingehendes UDP freigegeben sein.`r`n`r`nSRT-Port 9000 ist nicht der OBS-WebSocket-Port 4455.",
+        "Der SRT-Port ist der UDP-Netzwerkanschluss für Bild und Ton.`r`n`r`nStandard: 9000`r`n`r`nIm normalen Modus wird nur dieser Port verwendet. UltraWide Dual-Split verwendet 9000 und 9001. UltraWide Triple-Split verwendet 9000, 9001 und 9002. Alle verwendeten Ports müssen auf dem OBS-PC in der Windows-Firewall für eingehendes UDP freigegeben sein.`r`n`r`nSRT-Port 9000 ist nicht der OBS-WebSocket-Port 4455.",
         'SRT-Port erklärt',
         'OK',
         'Information'
