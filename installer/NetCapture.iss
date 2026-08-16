@@ -1,7 +1,8 @@
 ﻿#define MyAppName "Crazy_Batto NetCapture"
-#define MyAppVersion "0.6.8"
+#define MyAppVersion "0.6.9"
 #define MyAppPublisher "Crazy_Batto Software"
 #define MyAppExeName "NetCapture.exe"
+#define MyAppIconName "NetCapture-v0.6.9.ico"
 
 [Setup]
 AppId={{9C92E21A-0C28-4B19-B8DC-6DF70E859B11}
@@ -32,16 +33,17 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 UseSetupLdr=no
 OutputDir=..\installer-output
-OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.8
+OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.9
 SetupIconFile=..\assets\NetCapture.ico
 LicenseFile=..\LICENSE.txt
-UninstallDisplayIcon={app}\NetCapture.ico
+UninstallDisplayIcon={app}\{#MyAppIconName}
 UninstallDisplayName={#MyAppName}
 Uninstallable=yes
 CreateUninstallRegKey=yes
 CloseApplications=yes
 RestartApplications=no
 ChangesEnvironment=no
+ChangesAssociations=yes
 SetupLogging=yes
 AllowNoIcons=yes
 UsePreviousAppDir=no
@@ -63,10 +65,10 @@ Name: "startmenuicon"; Description: "Startmenü-Verknüpfung erstellen"; GroupDe
 Source: "..\NetCapture.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\third_party\launcher\NetCapture.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\RELEASE-NOTES-v0.6.8.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\RELEASE-NOTES-v0.6.9.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\THIRD-PARTY-NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\assets\NetCapture.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\assets\NetCapture.ico"; DestDir: "{app}"; DestName: "{#MyAppIconName}"; Flags: ignoreversion
 Source: "..\third_party\ffmpeg\ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\third_party\ffmpeg\FFMPEG-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\third_party\naudio\NAudio.Core.dll"; DestDir: "{app}\audio"; Flags: ignoreversion
@@ -74,9 +76,14 @@ Source: "..\third_party\naudio\NAudio.Wasapi.dll"; DestDir: "{app}\audio"; Flags
 Source: "..\third_party\naudio\AudioPipeCapture.dll"; DestDir: "{app}\audio"; Flags: ignoreversion
 Source: "..\third_party\naudio\NAUDIO-LICENSE.txt"; DestDir: "{app}\audio"; Flags: ignoreversion
 
+[InstallDelete]
+Type: files; Name: "{autodesktop}\{#MyAppName}.lnk"
+Type: files; Name: "{group}\{#MyAppName}.lnk"
+Type: files; Name: "{app}\NetCapture.ico"
+
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\NetCapture.ico"; Tasks: startmenuicon
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\NetCapture.ico"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppIconName}"; IconIndex: 0; Tasks: startmenuicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppIconName}"; IconIndex: 0; Tasks: desktopicon
 Name: "{group}\NetCapture deinstallieren"; Filename: "{uninstallexe}"; Tasks: startmenuicon
 
 [Run]
