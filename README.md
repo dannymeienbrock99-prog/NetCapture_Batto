@@ -1,4 +1,4 @@
-# Crazy_Batto NetCapture 0.6.5
+# Crazy_Batto NetCapture 0.6.6
 
 Crazy_Batto NetCapture überträgt einen Windows-Monitor über das lokale Netzwerk an einen zweiten PC mit OBS Studio. Für Einrichtung und Fehlersuche kann OBS auch auf demselben PC laufen. Es funktioniert wie eine softwarebasierte Netzwerk-Capture-Karte und verwendet dafür SRT.
 
@@ -11,7 +11,7 @@ Crazy_Batto NetCapture überträgt einen Windows-Monitor über das lokale Netzwe
 
 ## Installation mit Setup.exe
 
-Die normale Windows-Installation erfolgt mit `CrazyBatto-NetCapture-Setup-v0.6.5.zip`. Das ZIP muss zuerst vollständig entpackt werden. Danach wird `CrazyBatto-NetCapture-Setup-v0.6.5.exe` aus dem entpackten Ordner als Administrator gestartet. Die danebenliegenden `.bin`-Dateien gehören zum Installer und dürfen nicht gelöscht oder einzeln verschoben werden. Diese Mehrdatei-Ausgabe verwendet `UseSetupLdr=no` und startet deshalb keinen Setup-Teil mehr aus dem Windows-TEMP-Ordner. NetCapture wird nach `C:\Program Files\Crazy_Batto\NetCapture` installiert, damit EXE, PowerShell-Skript und DLLs nicht mehr aus einem benutzerbeschreibbaren AppData-Ordner ausgeführt werden. Der Assistent bietet eine eigene Willkommensseite mit Team-Alpha-Logo, Lizenzseite, Startmenü- und Desktop-Verknüpfung sowie einen vollständigen Eintrag unter **Windows-Einstellungen → Apps → Installierte Apps**.
+Die normale Windows-Installation erfolgt mit `CrazyBatto-NetCapture-Setup-v0.6.6.zip`. Das ZIP muss zuerst vollständig entpackt werden. Danach wird `CrazyBatto-NetCapture-Setup-v0.6.6.exe` aus dem entpackten Ordner als Administrator gestartet. Die danebenliegenden `.bin`-Dateien gehören zum Installer und dürfen nicht gelöscht oder einzeln verschoben werden. Diese Mehrdatei-Ausgabe verwendet `UseSetupLdr=no` und startet deshalb keinen Setup-Teil mehr aus dem Windows-TEMP-Ordner. NetCapture wird nach `C:\Program Files\Crazy_Batto\NetCapture` installiert, damit EXE, PowerShell-Skript und DLLs nicht mehr aus einem benutzerbeschreibbaren AppData-Ordner ausgeführt werden. Der Assistent bietet eine eigene Willkommensseite mit Team-Alpha-Logo, Lizenzseite, Startmenü- und Desktop-Verknüpfung sowie einen vollständigen Eintrag unter **Windows-Einstellungen → Apps → Installierte Apps**.
 
 Der GitHub-Actions-Workflow `.github/workflows/build-windows-installer.yml` erstellt zuerst `AudioPipeCapture.dll` und den fensterlosen `NetCapture.exe`-Launcher. Danach wird automatisch der vollständige Inno-Setup-Installer erzeugt. Im installierten Programm werden keine CMD- oder VBS-Startdateien verwendet. Für einen lokalen Entwickler-Build werden das .NET 8 SDK und Inno Setup 6 benötigt; der Build wird mit `powershell.exe -ExecutionPolicy Bypass -File .\Build-Installer.ps1` gestartet.
 
@@ -20,7 +20,7 @@ Der erzeugte Installer ist technisch vollständig, aber noch nicht mit einem kos
 ## Schnellstart
 
 1. Eine vorhandene Version zuerst unter **Windows-Einstellungen → Apps → Installierte Apps** deinstallieren.
-2. `CrazyBatto-NetCapture-Setup-v0.6.5.zip` vollständig entpacken und anschließend `CrazyBatto-NetCapture-Setup-v0.6.5.exe` im entpackten Ordner starten. Die Windows-Abfrage für Administratorrechte bestätigen.
+2. `CrazyBatto-NetCapture-Setup-v0.6.6.zip` vollständig entpacken und anschließend `CrazyBatto-NetCapture-Setup-v0.6.6.exe` im entpackten Ordner starten. Die Windows-Abfrage für Administratorrechte bestätigen.
 3. Auf dem OBS-PC in OBS **Werkzeuge → WebSocket-Servereinstellungen** öffnen, den Server aktivieren und Port sowie Passwort merken. Standardport ist `4455`.
 4. NetCapture öffnen. Unter **OBS WebSocket-Server** IP-Adresse des OBS-PCs, Port und Passwort eintragen und **Mit OBS verbinden** drücken.
 5. Eine OBS-Szene auswählen, einen Quellennamen festlegen und **Quelle einrichten** drücken.
@@ -32,7 +32,7 @@ Das WebSocket-Passwort wird nur für die laufende Verbindung verwendet und nicht
 
 ## OBS auf demselben PC testen
 
-Mit Version 0.6.5 ist für einen Funktionstest kein zweiter Rechner nötig:
+Mit Version 0.6.6 ist für einen Funktionstest kein zweiter Rechner nötig:
 
 1. OBS und NetCapture auf demselben Windows-PC starten.
 2. In OBS unter **Werkzeuge → WebSocket-Servereinstellungen** den WebSocket-Server aktivieren. Standardport ist `4455`.
@@ -55,7 +55,7 @@ Die Spielaufnahme verwendet keine Prozessinjektion und keinen Anti-Cheat-relevan
 
 ## UltraWide 11620×2160 über drei Streams
 
-Ein einzelner H.264-Stream kann diese Breite nicht zuverlässig codieren. Version 0.6.5 startet deshalb im Modus **UltraWide Triple-Split** drei getrennte FFmpeg-Prozesse:
+Ein einzelner H.264-Stream kann diese Breite nicht zuverlässig codieren. Version 0.6.6 startet deshalb im Modus **UltraWide Triple-Split** drei getrennte FFmpeg-Prozesse:
 
 1. NVIDIA Surround oder eine vergleichbare Windows-Anordnung muss die vollständige Fläche als **einen** Monitor mit `11620×2160` anzeigen.
 2. In NetCapture **UltraWide Triple-Split**, den breiten Monitor, den Basisport `9000` und möglichst `NVIDIA NVENC (H.264)` wählen. Die Ausgabe bleibt automatisch auf **Original**.
@@ -151,6 +151,8 @@ New-NetFirewallRule -DisplayName 'Crazy_Batto NetCapture SRT Triple' -Direction 
 
 - **OBS bleibt schwarz:** OBS-Medienquelle zuerst aktivieren, anschließend NetCapture starten.
 - **WebSocket-Verbindung fehlgeschlagen:** WebSocket-Server in OBS aktivieren, IP-Adresse, TCP-Port `4455`, Passwort und Firewall prüfen.
+- **Verbindung wird nach dem Laden der Szenen wieder getrennt / Eigenschaft `scenes` fehlt:** Version 0.6.6 installieren. Die OBS-Antwort wird dort ohne PowerShell-Aufzählung verarbeitet; notfalls verwendet NetCapture die aktuell aktive OBS-Szene und hält die Verbindung offen.
+- **Ungültiger URI / ungültiger Anschluss:** Version 0.6.6 akzeptiert im Hostfeld sowohl `127.0.0.1` als auch `127.0.0.1:4455` und `ws://127.0.0.1:4455`. Im lokalen Test wird automatisch die richtige Adresse gesetzt.
 - **Authentifizierung fehlgeschlagen:** Das WebSocket-Passwort aus OBS erneut in NetCapture eingeben. Es wird absichtlich nicht gespeichert.
 - **Connection timed out:** IP-Adresse, UDP-Port und Firewall prüfen.
 - **Unknown encoder:** Der gewählte Encoder ist in der installierten FFmpeg-Version nicht enthalten. Anderen Encoder auswählen.
@@ -159,12 +161,12 @@ New-NetFirewallRule -DisplayName 'Crazy_Batto NetCapture SRT Triple' -Direction 
 - **Keine Tonquelle sichtbar:** **Tonquellen laden** beziehungsweise **Neu laden** drücken und prüfen, ob das Gerät in den Windows-Soundeinstellungen aktiv ist.
 - **Kein PC-Ton:** Einen Eintrag mit `PC-Ton:` wählen. Ein `Mikrofon:`-Eintrag nimmt nur das jeweilige Eingabegerät auf.
 - **SRT `I/O error` / Code -5:** NetCapture prüft und startet die OBS-Medienquelle jetzt automatisch vor FFmpeg. Tritt der Fehler trotzdem auf, auf dem OBS-PC eingehendes UDP für die verwendeten Ports freigeben und die eingetragene IPv4-Adresse prüfen. Alte OBS-Adressen mit `timeout=5000000` ersetzen.
-- **Alle drei Triple-Streams melden gleichzeitig Code -5:** Die Bildschirmaufnahme ist in diesem Fall in Ordnung, aber OBS lauscht noch nicht auf `9000–9002`. Zuerst NetCapture per WebSocket mit OBS verbinden und **Quelle einrichten** drücken. Version 0.6.5 startet die Empfänger danach vor jeder Übertragung automatisch neu und lässt den SRT-Callern 20 Sekunden Verbindungszeit.
+- **Alle drei Triple-Streams melden gleichzeitig Code -5:** Die Bildschirmaufnahme ist in diesem Fall in Ordnung, aber OBS lauscht noch nicht auf `9000–9002`. Zuerst NetCapture per WebSocket mit OBS verbinden und **Quelle einrichten** drücken. Version 0.6.6 startet die Empfänger danach vor jeder Übertragung automatisch neu und lässt den SRT-Callern 20 Sekunden Verbindungszeit.
 - **Nur ein Teil des UltraWide-Bildes kommt an:** In OBS müssen alle drei Medienquellen sichtbar sein und die drei Listener auf Basisport, Basisport +1 und Basisport +2 warten. Firewall und Portfreigaben für alle drei UDP-Ports prüfen.
 - **Ein Triple-Stream meldet Encoderfehler:** Die Grafikkarte oder der Treiber unterstützt möglicherweise nicht drei gleichzeitige Sitzungen bei dieser Auflösung/FPS. Zuerst 30 FPS und eine niedrigere Bitrate testen oder einen anderen Encoder wählen.
-- **AudioPipeCapture.dll fehlt:** Version 0.6.5 mit dem fertigen Setup erneut installieren. Die Quelldatei `AudioPipeCapture.cs` darf nicht mehr beim Programmstart kompiliert werden.
-- **Fehler 4551 / Datei konnte nicht im temporären Ordner ausgeführt werden:** Nur das v0.6.5-ZIP verwenden, vollständig entpacken und alle `.exe`-/`.bin`-Teile im selben Ordner lassen. v0.6.5 verwendet keinen temporär gestarteten Inno-Setup-Loader mehr.
-- **Nach dem Start öffnet sich kein Fenster:** Prüfe `%LOCALAPPDATA%\CrazyBatto\NetCapture\launcher.log`. Version 0.6.5 zeigt bei einem Launcher- oder PowerShell-Abbruch zusätzlich ein sichtbares Fehlerfenster an.
+- **AudioPipeCapture.dll fehlt:** Version 0.6.6 mit dem fertigen Setup erneut installieren. Die Quelldatei `AudioPipeCapture.cs` darf nicht mehr beim Programmstart kompiliert werden.
+- **Fehler 4551 / Datei konnte nicht im temporären Ordner ausgeführt werden:** Nur das v0.6.6-ZIP verwenden, vollständig entpacken und alle `.exe`-/`.bin`-Teile im selben Ordner lassen. v0.6.6 verwendet keinen temporär gestarteten Inno-Setup-Loader mehr.
+- **Nach dem Start öffnet sich kein Fenster:** Prüfe `%LOCALAPPDATA%\CrazyBatto\NetCapture\launcher.log`. Version 0.6.6 zeigt bei einem Launcher- oder PowerShell-Abbruch zusätzlich ein sichtbares Fehlerfenster an.
 - **Alter `netstandard`-Fehler:** Eine ältere Version ist installiert. NetCapture 0.4.3 entfernt genau diese Laufzeit-Kompilierung.
 - **Fehler „Liste hatte eine feste Größe“:** Dieser PowerShell-Listenfehler ist seit Version 0.4.2 korrigiert.
 - **Geschütztes Video bleibt schwarz:** DRM-geschützte Inhalte können absichtlich von der Bildschirmaufnahme ausgeschlossen sein.
@@ -177,4 +179,4 @@ NetCapture kann vollständig unter **Windows-Einstellungen → Apps → Installi
 
 ## Aktueller Umfang
 
-Version 0.6.5 enthält einen richtigen Inno-Setup-Assistenten als vollständig zu entpackendes Mehrdatei-ZIP und einen eigenen fensterlosen `NetCapture.exe`-Launcher ohne installierte CMD-/VBS-Startdateien. `UseSetupLdr=no` verhindert den von Anwendungssteuerungsrichtlinien blockierten Start einer Setup-Datei aus `%TEMP%`. Die Installation erfolgt mit Administratorrechten nach `Program Files`; der Launcher protokolliert Startfehler sichtbar in `launcher.log`. Hinzu kommen ein lokaler OBS-Test über `127.0.0.1`, FFmpeg 9.0.1, OBS-WebSocket v5, automatische SRT-Medienquellen, Monitoraufnahme, auswählbare Fensteraufnahme, Spielaufnahme für Fenster/randloses Vollbild, Windows-WASAPI-Tonauswahl und UltraWide Triple-Split mit drei parallelen H.264-/SRT-Streams. Vor dem Streamstart wird die OBS-Verbindung geprüft; die Empfänger werden automatisch aktiviert und neu gestartet, bevor die SRT-Caller bis zu 20 Sekunden auf die Verbindung warten. Ein echter SRT-Verbindungsfehler wird getrennt von Encoder- und Aufnahmefehlern gemeldet. NDI wird nicht verwendet.
+Version 0.6.6 enthält einen richtigen Inno-Setup-Assistenten als vollständig zu entpackendes Mehrdatei-ZIP und einen eigenen fensterlosen `NetCapture.exe`-Launcher ohne installierte CMD-/VBS-Startdateien. `UseSetupLdr=no` verhindert den von Anwendungssteuerungsrichtlinien blockierten Start einer Setup-Datei aus `%TEMP%`. Die Installation erfolgt mit Administratorrechten nach `Program Files`; der Launcher protokolliert Startfehler sichtbar in `launcher.log`. Hinzu kommen die korrigierte OBS-Szenenverarbeitung, ein lokaler OBS-Test über `127.0.0.1`, FFmpeg 9.0.1, OBS-WebSocket v5, automatische SRT-Medienquellen, Monitoraufnahme, auswählbare Fensteraufnahme, Spielaufnahme für Fenster/randloses Vollbild, Windows-WASAPI-Tonauswahl und UltraWide Triple-Split mit drei parallelen H.264-/SRT-Streams. Vor dem Streamstart wird die OBS-Verbindung geprüft; die Empfänger werden automatisch aktiviert und neu gestartet, bevor die SRT-Caller bis zu 20 Sekunden auf die Verbindung warten. Ein echter SRT-Verbindungsfehler wird getrennt von Encoder- und Aufnahmefehlern gemeldet. NDI wird nicht verwendet.

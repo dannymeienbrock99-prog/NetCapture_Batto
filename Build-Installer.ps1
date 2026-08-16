@@ -14,7 +14,7 @@ $launcherBuilder = Join-Path $root 'Build-Launcher.ps1'
 $launcher = Join-Path $root 'third_party\launcher\NetCapture.exe'
 $ffmpegDownloader = Join-Path $root 'Download-FFmpeg.ps1'
 $bundledFfmpeg = Join-Path $root 'third_party\ffmpeg\ffmpeg.exe'
-$setupBaseName = 'CrazyBatto-NetCapture-Setup-v0.6.5'
+$setupBaseName = 'CrazyBatto-NetCapture-Setup-v0.6.6'
 
 function Find-InnoCompiler {
     $candidates = @(
@@ -95,7 +95,7 @@ New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 Get-ChildItem -LiteralPath $outputDirectory -Filter "$setupBaseName*" -File -ErrorAction SilentlyContinue |
     Remove-Item -Force
 Write-Host "Verwende Compiler: $compiler" -ForegroundColor DarkGray
-Write-Host 'Erstelle NetCapture v0.6.5 für Program Files ohne temporären Setup-Loader ...' -ForegroundColor Cyan
+Write-Host 'Erstelle NetCapture v0.6.6 für Program Files ohne temporären Setup-Loader ...' -ForegroundColor Cyan
 
 $build = Start-Process -FilePath $compiler -ArgumentList ('"' + $installerScript + '"') -Wait -PassThru -NoNewWindow
 if ($build.ExitCode -ne 0) {

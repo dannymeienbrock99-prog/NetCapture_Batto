@@ -22,7 +22,7 @@ public static class NetCaptureDpi {
 catch { }
 
 $script:AppName = 'Crazy_Batto NetCapture'
-$script:AppVersion = '0.6.5'
+$script:AppVersion = '0.6.6'
 $script:SrtConnectTimeoutMs = 20000
 $script:BasePath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:ConfigPath = Join-Path $env:APPDATA 'CrazyBatto\NetCapture\settings.json'
@@ -605,7 +605,7 @@ function Send-ObsMessage {
         [System.Threading.CancellationToken]::None
     )
     if (-not $task.Wait(5000)) { throw 'Zeitüberschreitung beim Senden an OBS.' }
-    $task.GetAwaiter().GetResult()
+    [void]$task.GetAwaiter().GetResult()
 }
 
 function Receive-ObsMessage {
@@ -642,14 +642,14 @@ function Invoke-ObsRequest {
     )
 
     $requestId = [System.Guid]::NewGuid().ToString('N')
-    Send-ObsMessage -Message ([ordered]@{
+    [void](Send-ObsMessage -Message ([ordered]@{
         op = 6
         d = [ordered]@{
             requestType = $RequestType
             requestId = $requestId
             requestData = $RequestData
         }
-    })
+    }))
 
     while ($true) {
         $message = Receive-ObsMessage
@@ -664,7 +664,10 @@ function Invoke-ObsRequest {
         }
 
         $responseProperty = $message.d.PSObject.Properties['responseData']
-        if ($responseProperty) { return $responseProperty.Value }
+        if ($responseProperty -and $null -ne $responseProperty.Value) {
+            Write-Output -NoEnumerate $responseProperty.Value
+            return
+        }
         return [pscustomobject]@{}
     }
 }
@@ -702,19 +705,56 @@ function Disconnect-ObsWebSocket {
 }
 
 function Refresh-ObsScenes {
-    $sceneList = Invoke-ObsRequest -RequestType 'GetSceneList'
+    $sceneResponses = @(Invoke-ObsRequest -RequestType 'GetSceneList')
+    if ($sceneResponses.Count -eq 0) { throw 'OBS hat keine Antwort auf GetSceneList geliefert.' }
+    $sceneList = $sceneResponses[$sceneResponses.Count - 1]
     $cmbObsScene.Items.Clear()
-    foreach ($scene in @($sceneList.scenes)) {
-        if ($scene.sceneName) { [void]$cmbObsScene.Items.Add([string]$scene.sceneName) }
+
+    $scenesProperty = $sceneList.PSObject.Properties['scenes']
+    if ($scenesProperty) {
+        foreach ($scene in @($scenesProperty.Value)) {
+            $sceneNameProperty = $scene.PSObject.Properties['sceneName']
+            if ($sceneNameProperty -and $sceneNameProperty.Value) {
+                [void]$cmbObsScene.Items.Add([string]$sceneNameProperty.Value)
+            }
+        }
     }
 
-    if ($sceneList.currentProgramSceneName -and $cmbObsScene.Items.Contains([string]$sceneList.currentProgramSceneName)) {
-        $cmbObsScene.SelectedItem = [string]$sceneList.currentProgramSceneName
+    $currentSceneName = $null
+    $currentSceneProperty = $sceneList.PSObject.Properties['currentProgramSceneName']
+    if ($currentSceneProperty -and $currentSceneProperty.Value) {
+        $currentSceneName = [string]$currentSceneProperty.Value
+    }
+
+    if ($cmbObsScene.Items.Count -eq 0) {
+        $fields = @($sceneList.PSObject.Properties | ForEach-Object { $_.Name }) -join ', '
+        Add-Log "OBS GetSceneList enthielt keine auswertbare Szenenliste. Antwortfelder: $(if ($fields) { $fields } else { 'keine' }). Versuche die aktive Szene."
+        if (-not $currentSceneName) {
+            $currentResponses = @(Invoke-ObsRequest -RequestType 'GetCurrentProgramScene')
+            if ($currentResponses.Count -gt 0) {
+                $currentResponse = $currentResponses[$currentResponses.Count - 1]
+                foreach ($propertyName in @('sceneName', 'currentProgramSceneName')) {
+                    $property = $currentResponse.PSObject.Properties[$propertyName]
+                    if ($property -and $property.Value) {
+                        $currentSceneName = [string]$property.Value
+                        break
+                    }
+                }
+            }
+        }
+        if ($currentSceneName) { [void]$cmbObsScene.Items.Add($currentSceneName) }
+    }
+
+    if ($currentSceneName -and $cmbObsScene.Items.Contains($currentSceneName)) {
+        $cmbObsScene.SelectedItem = $currentSceneName
     }
     elseif ($cmbObsScene.Items.Count -gt 0) {
         $cmbObsScene.SelectedIndex = 0
     }
     $btnObsCreateSource.Enabled = $cmbObsScene.Items.Count -gt 0
+    if ($cmbObsScene.Items.Count -eq 0) {
+        throw 'OBS ist verbunden, hat aber keine verwendbare Szene geliefert. Lege in OBS mindestens eine Szene an und drücke danach Szenen neu laden.'
+    }
     Add-Log "$($cmbObsScene.Items.Count) OBS-Szene(n) geladen."
 }
 
@@ -727,12 +767,29 @@ function Connect-ObsWebSocket {
 
     $hostName = $txtObsHost.Text.Trim()
     if ([string]::IsNullOrWhiteSpace($hostName)) { $hostName = $txtTargetIp.Text.Trim() }
-    if ([string]::IsNullOrWhiteSpace($hostName) -or $hostName -match '[\s/\\]') {
-        throw 'Bitte eine gültige IP-Adresse oder einen Hostnamen für OBS eingeben.'
-    }
     $wsPort = 0
     if (-not [int]::TryParse($txtObsWsPort.Text.Trim(), [ref]$wsPort) -or $wsPort -lt 1 -or $wsPort -gt 65535) {
         throw 'Der OBS-WebSocket-Port muss zwischen 1 und 65535 liegen.'
+    }
+
+    if ($hostName -match '^wss?://') {
+        $pastedUri = $null
+        if (-not [System.Uri]::TryCreate($hostName, [System.UriKind]::Absolute, [ref]$pastedUri)) {
+            throw 'Die eingegebene OBS-WebSocket-Adresse ist ungültig.'
+        }
+        $hostName = $pastedUri.Host
+        if (-not $pastedUri.IsDefaultPort) { $wsPort = $pastedUri.Port }
+    }
+    elseif ($hostName -match '^(?<host>[^:]+):(?<port>[0-9]+)$') {
+        $hostName = $Matches['host']
+        $parsedPort = 0
+        if (-not [int]::TryParse($Matches['port'], [ref]$parsedPort) -or $parsedPort -lt 1 -or $parsedPort -gt 65535) {
+            throw 'Der Anschluss in der OBS-Adresse muss zwischen 1 und 65535 liegen.'
+        }
+        $wsPort = $parsedPort
+    }
+    if ([string]::IsNullOrWhiteSpace($hostName) -or $hostName -match '[\s/\\]') {
+        throw 'Bitte eine gültige IP-Adresse oder einen Hostnamen für OBS eingeben.'
     }
 
     Disconnect-ObsWebSocket
@@ -740,10 +797,11 @@ function Connect-ObsWebSocket {
     $socket.Options.KeepAliveInterval = [System.TimeSpan]::FromSeconds(15)
     $script:ObsSocket = $socket
     try {
-        $uri = New-Object System.Uri("ws://${hostName}:${wsPort}")
+        $uriBuilder = [System.UriBuilder]::new('ws', $hostName, $wsPort)
+        $uri = $uriBuilder.Uri
         $connectTask = $socket.ConnectAsync($uri, [System.Threading.CancellationToken]::None)
         if (-not $connectTask.Wait(6000)) { throw 'Zeitüberschreitung beim Verbinden mit OBS.' }
-        $connectTask.GetAwaiter().GetResult()
+        [void]$connectTask.GetAwaiter().GetResult()
 
         $hello = Receive-ObsMessage
         if ([int]$hello.op -ne 0) { throw 'OBS hat kein gültiges WebSocket-v5-Hello gesendet.' }
@@ -755,17 +813,24 @@ function Connect-ObsWebSocket {
             $identifyData['authentication'] = Get-ObsAuthentication -Password $txtObsPassword.Text -Salt ([string]$authProperty.Value.salt) -Challenge ([string]$authProperty.Value.challenge)
         }
 
-        Send-ObsMessage -Message ([ordered]@{ op = 1; d = $identifyData })
+        [void](Send-ObsMessage -Message ([ordered]@{ op = 1; d = $identifyData }))
         $identified = Receive-ObsMessage
         if ([int]$identified.op -ne 2) { throw 'OBS hat die Anmeldung abgelehnt.' }
 
         $script:ObsConnected = $true
         $txtObsHost.Text = $hostName
+        $txtObsWsPort.Text = [string]$wsPort
         $btnObsConnect.Text = 'OBS trennen'
         $btnObsRefresh.Enabled = $true
         $lblObsStatus.Text = '● VERBUNDEN'
         $lblObsStatus.ForeColor = [System.Drawing.Color]::FromArgb(61, 220, 151)
-        Refresh-ObsScenes
+        try {
+            Refresh-ObsScenes
+        }
+        catch {
+            Add-Log "OBS ist verbunden, aber die Szenenliste konnte noch nicht geladen werden: $($_.Exception.Message)"
+            $btnObsCreateSource.Enabled = $false
+        }
         Save-Settings
         Add-Log "Mit OBS WebSocket auf ${hostName}:${wsPort} verbunden."
     }
