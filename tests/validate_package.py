@@ -37,8 +37,10 @@ def main() -> None:
     icon = ROOT / "assets/NetCapture.ico"
     assert icon.is_file(), "missing file: assets/NetCapture.ico"
     assert icon.read_bytes()[:4] == b"\x00\x00\x01\x00", "invalid Windows icon header"
+    assert struct.unpack_from("<H", icon.read_bytes(), 4)[0] == 7, "Windows icon must contain seven sizes"
+    assert icon.stat().st_size > 300_000, "Team Alpha icon was not embedded"
     readme = require("README.md")
-    release_notes = require("RELEASE-NOTES-v0.6.6.md")
+    release_notes = require("RELEASE-NOTES-v0.6.7.md")
     require("LICENSE.txt")
     require("THIRD-PARTY-NOTICES.md")
 
@@ -106,8 +108,8 @@ def main() -> None:
     assert "Willkommen beim Installations-Assistenten" in installer
     assert "third_party\\ffmpeg\\ffmpeg.exe" in installer
     assert "third_party\\launcher\\NetCapture.exe" in installer
-    assert "RELEASE-NOTES-v0.6.6.md" in installer
-    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.6" in installer
+    assert "RELEASE-NOTES-v0.6.7.md" in installer
+    assert "OutputBaseFilename=CrazyBatto-NetCapture-Setup-v0.6.7" in installer
     assert "UseSetupLdr=no" in installer, "setup must not execute a loader from the Windows TEMP directory"
     assert "ArchitecturesAllowed=x64compatible" in installer
     assert "ArchitecturesInstallIn64BitMode=x64compatible" in installer
@@ -168,17 +170,18 @@ def main() -> None:
     assert "<TargetFramework>net472</TargetFramework>" in launcher_project
     assert "<ApplicationIcon>assets\\NetCapture.ico</ApplicationIcon>" in launcher_project
     assert "dotnet" in launcher_builder and "NetCapture.exe" in launcher_builder
+    assert "$iconTime" in launcher_builder, "launcher must rebuild after icon changes"
     assert "FEC81AE03971D9DD4BE3EBE02E263BD2EC1D789483F931BDBA5F5715E65DA2E9" in ffmpeg_downloader
     assert "Get-FileHash" in ffmpeg_downloader
     assert "Build-AudioBridge.ps1 -Force" in workflow
     assert "Build-Launcher.ps1 -Force" in workflow
     assert "Download-FFmpeg.ps1" in workflow
     assert "Build-Installer.ps1 -SkipAudioBuild -SkipLauncherBuild" in workflow
-    assert "CrazyBatto-NetCapture-Setup-v0.6.6.zip" in workflow
-    assert "CrazyBatto-NetCapture-v0.6.6-Windows" in workflow
+    assert "CrazyBatto-NetCapture-Setup-v0.6.7.zip" in workflow
+    assert "CrazyBatto-NetCapture-v0.6.7-Windows" in workflow
     assert "Compress-Archive" in builder
     assert "$setupParts.Count -lt 2" in builder
-    assert "$script:AppVersion = '0.6.6'" in script
+    assert "$script:AppVersion = '0.6.7'" in script
     assert "$txtTargetIp.Text = '127.0.0.1'" in script
     assert "$txtObsHost.Text = '127.0.0.1'" in script
     assert "Firewall-Freigabe sind nicht erforderlich" in script

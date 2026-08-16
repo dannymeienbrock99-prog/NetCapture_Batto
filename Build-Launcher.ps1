@@ -7,11 +7,12 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project = Join-Path $root 'NetCaptureLauncher.csproj'
 $source = Join-Path $root 'NetCaptureLauncher.cs'
+$icon = Join-Path $root 'assets\NetCapture.ico'
 $targetDirectory = Join-Path $root 'third_party\launcher'
 $target = Join-Path $targetDirectory 'NetCapture.exe'
 $releaseExe = Join-Path $root 'bin\Release\net472\NetCapture.exe'
 
-if (-not (Test-Path -LiteralPath $project) -or -not (Test-Path -LiteralPath $source)) {
+if (-not (Test-Path -LiteralPath $project) -or -not (Test-Path -LiteralPath $source) -or -not (Test-Path -LiteralPath $icon)) {
     throw 'Das Projekt für den NetCapture-EXE-Launcher ist unvollständig.'
 }
 
@@ -19,7 +20,8 @@ if (-not $Force -and (Test-Path -LiteralPath $target)) {
     $targetTime = (Get-Item -LiteralPath $target).LastWriteTimeUtc
     $sourceTime = (Get-Item -LiteralPath $source).LastWriteTimeUtc
     $projectTime = (Get-Item -LiteralPath $project).LastWriteTimeUtc
-    if ($targetTime -ge $sourceTime -and $targetTime -ge $projectTime) {
+    $iconTime = (Get-Item -LiteralPath $icon).LastWriteTimeUtc
+    if ($targetTime -ge $sourceTime -and $targetTime -ge $projectTime -and $targetTime -ge $iconTime) {
         Write-Host "EXE-Launcher ist bereits vorhanden: $target" -ForegroundColor DarkGray
         return
     }

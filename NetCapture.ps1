@@ -22,7 +22,7 @@ public static class NetCaptureDpi {
 catch { }
 
 $script:AppName = 'Crazy_Batto NetCapture'
-$script:AppVersion = '0.6.6'
+$script:AppVersion = '0.6.7'
 $script:SrtConnectTimeoutMs = 20000
 $script:BasePath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:ConfigPath = Join-Path $env:APPDATA 'CrazyBatto\NetCapture\settings.json'
